@@ -1,6 +1,10 @@
 # Casnet Backend
 
-This project is a FastAPI-based backend application designed to manage tenants, users, persons, tasks, and calendar events. It features an in-memory database for demonstration purposes and a full suite of CRUD API endpoints for each resource.
+> **Note:** This project is a work in progress.
+
+This project is a FastAPI-based backend application aimed at **roleplay servers** to help manage cases and records for different departments (e.g., LSPD, SAFMS). It features a full suite of CRUD API endpoints for resources like tenants (departments), users, persons, and more.
+
+The current database implementation is an in-memory solution for demonstration and development purposes. This is a temporary setup and is planned to be replaced with a persistent **SQL or NoSQL database** in the future.
 
 ## Project Structure
 
@@ -33,7 +37,7 @@ To get the application running locally, follow these steps:
 1.  **Install Dependencies**: Make sure you have Python and `pip` installed. Then, install the required packages:
 
     ```bash
-    pip install fastapi "uvicorn[standard]"
+    pip install -r requirements.txt
     ```
 
 2.  **Run the Application**: From the root directory of the project, run the following command:
