@@ -34,7 +34,7 @@ user_list: List[UserAccount] = [
     UserAccount(
         id="862dc359-4685-4d1b-b4b9-672f2d445833",
         name="Ignatius Stackley",
-        tenant=[tenant_list[0]],
+        tenant=tenant_list,
         createdAt=1759303664075,
         updatedAt=1759303664075
     ),
