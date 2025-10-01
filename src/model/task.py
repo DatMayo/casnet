@@ -10,4 +10,3 @@ class Task(Entity):
     title: str
     created_from: Person
     created_for: Person
-    due_date: int
