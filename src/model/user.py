@@ -15,6 +15,6 @@ class UserAccount(BaseModel):
     id: str
     name: str
     status: EStatus = EStatus.Active
-    tenant: List[Tenant] | None = None
+    tenant: List[Tenant] = None
     createdAt: int = Field(default_factory=get_timestamp)
     updatedAt: int = Field(default_factory=get_timestamp)
