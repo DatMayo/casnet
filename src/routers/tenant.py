@@ -7,7 +7,7 @@ import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import Tenant, tenant_list
-from ..util import get_timestamp
+from ..util import get_timestamp, find_item_by_id
 
 router = APIRouter()
 
@@ -35,10 +35,7 @@ async def get_tenant(tenant_id: str):
 
     - **tenant_id** - The tenant ID to retrieve from the database
     """
-    for tenant in tenant_list:
-        if tenant.id == tenant_id:
-            return tenant
-    raise HTTPException(status_code=404, detail="Tenant not found")
+    return find_item_by_id(tenant_id, tenant_list, "Tenant")
 
 
 @router.post(
@@ -77,15 +74,12 @@ async def create_tenant(tenant_name: str, tenant_description: str = None):
 )
 async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int):
     """Update an existing tenant's information."""
-    for index, tenant in enumerate(tenant_list):
-        if tenant.id == tenant_id:
-            tenant.name = tenant_name
-            tenant.description = tenant_description
-            tenant.status = tenant_status
-            tenant.updatedAt = get_timestamp()
-            tenant_list[index] = tenant
-            return tenant
-    raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant = find_item_by_id(tenant_id, tenant_list, "Tenant")
+    tenant.name = tenant_name
+    tenant.description = tenant_description
+    tenant.status = tenant_status
+    tenant.updatedAt = get_timestamp()
+    return tenant
 
 
 @router.delete(
@@ -96,7 +90,6 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
 )
 async def delete_tenant(tenant_id: str):
     """Deletes a tenant by its ID and returns the deleted object."""
-    for index, tenant in enumerate(tenant_list):
-        if tenant.id == tenant_id:
-            return tenant_list.pop(index)
-    raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant = find_item_by_id(tenant_id, tenant_list, "Tenant")
+    tenant_list.remove(tenant)
+    return tenant

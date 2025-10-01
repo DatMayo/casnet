@@ -7,7 +7,7 @@ import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import person_list, Person
-from ..util import get_timestamp
+from ..util import get_timestamp, find_item_by_id
 
 router = APIRouter()
 
@@ -31,29 +31,22 @@ async def create_person(person: Person):
 @router.get("/person/{person_id}", response_model=Person, tags=["persons"])
 async def get_person(person_id: str):
     """Retrieve a single person by their ID."""
-    for person in person_list:
-        if person.id == person_id:
-            return person
-    raise HTTPException(status_code=404, detail="Person not found")
+    return find_item_by_id(person_id, person_list, "Person")
 
 
 @router.put("/person/{person_id}", response_model=Person, tags=["persons"])
 async def update_person(person_id: str, first_name: str, last_name: str):
     """Update a person's details."""
-    for index, person in enumerate(person_list):
-        if person.id == person_id:
-            person.first_name = first_name
-            person.last_name = last_name
-            person.updatedAt = get_timestamp()
-            person_list[index] = person
-            return person
-    raise HTTPException(status_code=404, detail="Person not found")
+    person = find_item_by_id(person_id, person_list, "Person")
+    person.first_name = first_name
+    person.last_name = last_name
+    person.updatedAt = get_timestamp()
+    return person
 
 
 @router.delete("/person/{person_id}", response_model=Person, tags=["persons"])
 async def delete_person(person_id: str):
     """Delete a person by their ID and return the deleted object."""
-    for index, person in enumerate(person_list):
-        if person.id == person_id:
-            return person_list.pop(index)
-    raise HTTPException(status_code=404, detail="Person not found")
+    person = find_item_by_id(person_id, person_list, "Person")
+    person_list.remove(person)
+    return person

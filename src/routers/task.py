@@ -7,7 +7,7 @@ import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import task_list, Task, Person
-from ..util import get_timestamp
+from ..util import get_timestamp, find_item_by_id
 
 router = APIRouter()
 
@@ -31,29 +31,22 @@ async def create_task(task: Task):
 @router.get("/task/{task_id}", response_model=Task, tags=["tasks"])
 async def get_task(task_id: str):
     """Retrieve a single task by its ID."""
-    for task in task_list:
-        if task.id == task_id:
-            return task
-    raise HTTPException(status_code=404, detail="Task not found")
+    return find_item_by_id(task_id, task_list, "Task")
 
 
 @router.put("/task/{task_id}", response_model=Task, tags=["tasks"])
 async def update_task(task_id: str, title: str, created_for: Person):
     """Update a task's details."""
-    for index, task in enumerate(task_list):
-        if task.id == task_id:
-            task.title = title
-            task.created_for = created_for
-            task.updatedAt = get_timestamp()
-            task_list[index] = task
-            return task
-    raise HTTPException(status_code=404, detail="Task not found")
+    task = find_item_by_id(task_id, task_list, "Task")
+    task.title = title
+    task.created_for = created_for
+    task.updatedAt = get_timestamp()
+    return task
 
 
 @router.delete("/task/{task_id}", response_model=Task, tags=["tasks"])
 async def delete_task(task_id: str):
     """Delete a task by its ID and return the deleted object."""
-    for index, task in enumerate(task_list):
-        if task.id == task_id:
-            return task_list.pop(index)
-    raise HTTPException(status_code=404, detail="Task not found")
+    task = find_item_by_id(task_id, task_list, "Task")
+    task_list.remove(task)
+    return task
