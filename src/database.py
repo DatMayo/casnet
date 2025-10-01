@@ -87,26 +87,25 @@ for i in range(len(user_list), DATA_COUNT):
     ))
 
 # Generate Persons
-for i in range(len(person_list), DATA_COUNT * 3):
-    has_user = random.randint(0, 10) > 7
-    if not has_user:
-        person_list.append(
-            Person(
-                id=str(uuid.uuid4()),
-                first_name=random.choice(predefined_first_names),
-                last_name=random.choice(predefined_last_names),
-                tenant=random.choice(tenant_list),
-                gender=random.randint(0, len(EGender) - 1)
-            )
-        )
+for _ in range(DATA_COUNT * 3):
+    person_args = {
+        "id": str(uuid.uuid4()),
+        "first_name": random.choice(predefined_first_names),
+        "last_name": random.choice(predefined_last_names),
+        "gender": random.choice(list(EGender))
+    }
+
+    # 30% chance to associate with a user account
+    if random.random() < 0.3 and user_list:
+        user = random.choice(user_list)
+        person_args["user"] = user
+        # Inherit tenant from user if available
+        if user.tenant:
+            person_args["tenant"] = random.choice(user.tenant)
+        else:
+            person_args["tenant"] = random.choice(tenant_list)
     else:
-        person_list.append(
-            Person(
-                id=str(uuid.uuid4()),
-                first_name=random.choice(predefined_first_names),
-                last_name=random.choice(predefined_last_names),
-                tenant=random.choice(tenant_list),
-                gender=random.randint(0, len(EGender) - 1),
-                user=random.choice(user_list)
-            )
-        )
+        # Assign a random tenant if no user is associated
+        person_args["tenant"] = random.choice(tenant_list)
+
+    person_list.append(Person(**person_args))
