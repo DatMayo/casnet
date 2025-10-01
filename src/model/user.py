@@ -1,5 +1,6 @@
 """
-Defines the Pydantic model for a UserAccount.
+Defines the Pydantic model for a UserAccount, representing a user's login credentials
+and their association with one or more tenants.
 """
 from src.enum.estatus import EStatus
 from src.model.tenant import Tenant

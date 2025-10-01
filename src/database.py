@@ -1,8 +1,9 @@
 """
 In-memory database for the application.
 
-This module contains lists of tenants and users that are used for demonstration purposes.
-In a production environment, this would be replaced with a proper database connection.
+This module initializes and populates in-memory lists of data models with dummy
+data for demonstration purposes. In a production environment, this would be replaced
+with a proper database connection.
 """
 import random
 import uuid

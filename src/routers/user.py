@@ -1,12 +1,14 @@
 """
 API endpoints for user management.
 
-This module contains routes for creating and reading user accounts.
+This module contains routes for creating, reading, updating, and deleting user accounts.
 """
+import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import UserAccount, user_list
 from ..model.tenant import Tenant
+from ..util import get_timestamp
 
 router = APIRouter()
 
@@ -17,7 +19,7 @@ async def get_users(limit: int = 100, offset: int = 0):
     return user_list[offset:offset + limit]
 
 
-@router.post("/user", response_model=UserAccount, tags=["users"])
+@router.post("/user", response_model=UserAccount, tags=["users"], status_code=201)
 async def create_user(user_name: str, user_tenant: List[Tenant]):
     """Create a new user account."""
     if any(user.name == user_name for user in user_list):
@@ -43,7 +45,7 @@ async def get_user(user_id: str):
 
 @router.put("/user/{user_id}", response_model=UserAccount, tags=["users"])
 async def update_user(user_id: str, user_name: str, user_tenant: List[Tenant]):
-    """Update an existing user's information."""
+    """Update an existing user's name and tenant associations."""
     for index, user in enumerate(user_list):
         if user.id == user_id:
             user.name = user_name
@@ -53,11 +55,10 @@ async def update_user(user_id: str, user_name: str, user_tenant: List[Tenant]):
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@router.delete("/user/{user_id}", status_code=204, tags=["users"])
+@router.delete("/user/{user_id}", response_model=UserAccount, tags=["users"])
 async def delete_user(user_id: str):
-    """Deletes a user by their ID."""
+    """Delete a user by their ID and return the deleted user."""
     for index, user in enumerate(user_list):
         if user.id == user_id:
-            user_list.pop(index)
-            return user
+            return user_list.pop(index)
     raise HTTPException(status_code=404, detail="User not found")

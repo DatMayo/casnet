@@ -1,7 +1,8 @@
 """
-Defines the base Pydantic model for a generic Entity.
+Defines the base Pydantic model for all data entities.
 
-This model provides common fields that other models can inherit from.
+This model provides common fields that other data models inherit from, such as ID,
+tenant, status, and timestamps.
 """
 from src.enum.estatus import EStatus
 from src.model.tenant import Tenant

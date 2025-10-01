@@ -1,7 +1,8 @@
 """
 Main application file for the Casnet backend.
 
-This file initializes the FastAPI application and includes the necessary routers.
+This file initializes the FastAPI application, configures middleware, and includes
+the API routers for all the application's endpoints.
 """
 from fastapi import FastAPI
 from .routers import tenant, user, person, task, calendar

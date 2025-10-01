@@ -1,5 +1,6 @@
 """
-Defines the Pydantic model for a Person.
+Defines the Pydantic model for a Person, representing an individual's personal
+information. This model can be linked to a UserAccount.
 """
 from src.enum.egender import EGender
 from src.model.entity import Entity

@@ -1,5 +1,8 @@
 """
 Utility functions for the application.
+
+This module contains common helper functions, such as timestamp generation,
+that are used across the application.
 """
 import datetime
 

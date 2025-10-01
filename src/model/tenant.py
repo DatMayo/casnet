@@ -1,5 +1,6 @@
 """
-Defines the Pydantic model for a Tenant.
+Defines the Pydantic model for a Tenant, which represents a distinct
+customer or organization in a multi-tenant system.
 """
 from src.enum.estatus import EStatus
 from pydantic import BaseModel, Field

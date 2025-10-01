@@ -1,8 +1,9 @@
 """
 API endpoints for task management.
 
-This module contains routes for creating and reading tasks.
+This module contains routes for creating, reading, updating, and deleting tasks.
 """
+import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import task_list, Task, Person
@@ -17,7 +18,7 @@ async def get_tasks(limit: int = 100, offset: int = 0):
     return task_list[offset:offset + limit]
 
 
-@router.post("/task", response_model=Task, tags=["tasks"])
+@router.post("/task", response_model=Task, tags=["tasks"], status_code=201)
 async def create_task(task: Task):
     """Create a new task."""
     if any(t.id == task.id for t in task_list):
@@ -49,11 +50,10 @@ async def update_task(task_id: str, title: str, created_for: Person):
     raise HTTPException(status_code=404, detail="Task not found")
 
 
-@router.delete("/task/{task_id}", status_code=204, tags=["tasks"])
+@router.delete("/task/{task_id}", response_model=Task, tags=["tasks"])
 async def delete_task(task_id: str):
-    """Delete a task by its ID."""
+    """Delete a task by its ID and return the deleted object."""
     for index, task in enumerate(task_list):
         if task.id == task_id:
-            task_list.pop(index)
-            return task
+            return task_list.pop(index)
     raise HTTPException(status_code=404, detail="Task not found")

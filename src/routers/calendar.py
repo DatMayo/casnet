@@ -1,8 +1,9 @@
 """
 API endpoints for calendar management.
 
-This module contains routes for creating and reading calendar events.
+This module contains routes for creating, reading, updating, and deleting calendar events.
 """
+import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import calendar_list, Calendar
@@ -17,7 +18,7 @@ async def get_calendars(limit: int = 100, offset: int = 0):
     return calendar_list[offset:offset + limit]
 
 
-@router.post("/calendar", response_model=Calendar, tags=["calendar"])
+@router.post("/calendar", response_model=Calendar, tags=["calendar"], status_code=201)
 async def create_calendar(calendar: Calendar):
     """Create a new calendar event."""
     if any(c.id == calendar.id for c in calendar_list):
@@ -49,11 +50,10 @@ async def update_calendar(calendar_id: str, title: str, description: str):
     raise HTTPException(status_code=404, detail="Calendar event not found")
 
 
-@router.delete("/calendar/{calendar_id}", status_code=204, tags=["calendar"])
+@router.delete("/calendar/{calendar_id}", response_model=Calendar, tags=["calendar"])
 async def delete_calendar(calendar_id: str):
-    """Delete a calendar event by its ID."""
+    """Delete a calendar event by its ID and return the deleted object."""
     for index, calendar in enumerate(calendar_list):
         if calendar.id == calendar_id:
-            calendar_list.pop(index)
-            return calendar
+            return calendar_list.pop(index)
     raise HTTPException(status_code=404, detail="Calendar event not found")

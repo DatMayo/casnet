@@ -1,8 +1,9 @@
 """
 API endpoints for person management.
 
-This module contains routes for creating and reading persons.
+This module contains routes for creating, reading, updating, and deleting persons.
 """
+import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import person_list, Person
@@ -17,7 +18,7 @@ async def get_persons(limit: int = 100, offset: int = 0):
     return person_list[offset:offset + limit]
 
 
-@router.post("/person", response_model=Person, tags=["persons"])
+@router.post("/person", response_model=Person, tags=["persons"], status_code=201)
 async def create_person(person: Person):
     """Create a new person."""
     if any(p.id == person.id for p in person_list):
@@ -49,11 +50,10 @@ async def update_person(person_id: str, first_name: str, last_name: str):
     raise HTTPException(status_code=404, detail="Person not found")
 
 
-@router.delete("/person/{person_id}", status_code=204, tags=["persons"])
+@router.delete("/person/{person_id}", response_model=Person, tags=["persons"])
 async def delete_person(person_id: str):
-    """Delete a person by their ID."""
+    """Delete a person by their ID and return the deleted object."""
     for index, person in enumerate(person_list):
         if person.id == person_id:
-            person_list.pop(index)
-            return person
+            return person_list.pop(index)
     raise HTTPException(status_code=404, detail="Person not found")
