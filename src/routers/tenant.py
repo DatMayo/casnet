@@ -3,7 +3,6 @@ API endpoints for tenant management.
 
 This module contains routes for creating, reading, updating, and deleting tenants.
 """
-import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import Tenant, tenant_list
@@ -83,5 +82,20 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
             tenant.status = tenant_status
             tenant.updatedAt = get_timestamp()
             tenant_list[index] = tenant
+            return tenant
+    raise HTTPException(status_code=404, detail="Tenant not found")
+
+
+@router.delete(
+    "/tenant/{tenant_id}",
+    status_code=204,
+    tags=["tenants"],
+    summary="Deletes a tenant by its ID"
+)
+async def delete_tenant(tenant_id: str):
+    """Deletes a tenant by its ID."""
+    for index, tenant in enumerate(tenant_list):
+        if tenant.id == tenant_id:
+            tenant_list.pop(index)
             return tenant
     raise HTTPException(status_code=404, detail="Tenant not found")
