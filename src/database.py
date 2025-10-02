@@ -115,7 +115,6 @@ for i in range(DATA_COUNT * 3):
         status=random.randint(0, len(EStatus) - 1),
         tenant=dummy_tenants
     )
-    print(f"User {user.name} created with {len(dummy_tenants)} tenants")
     user_list.append(user)
 
     # Create a person associated with the user and a primary tenant
