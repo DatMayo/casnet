@@ -3,6 +3,7 @@ Defines the Pydantic model for a Calendar event.
 """
 from src.model.entity import Entity
 from src.model.person import Person
+from src.model.tenant import Tenant
 
 
 class Calendar(Entity):
@@ -12,3 +13,4 @@ class Calendar(Entity):
     created_from: Person
     date_start: int
     date_end: int = 0
+    tenant: Tenant = None

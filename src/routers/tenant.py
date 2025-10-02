@@ -7,7 +7,7 @@ import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException
 from ..database import Tenant, tenant_list
-from ..util import get_timestamp, find_item_by_id
+from ..util import get_timestamp, find_tenant_by_id
 
 router = APIRouter()
 
@@ -35,7 +35,7 @@ async def get_tenant(tenant_id: str):
 
     - **tenant_id** - The tenant ID to retrieve from the database
     """
-    return find_item_by_id(tenant_id, tenant_list, "Tenant")
+    return find_tenant_by_id(tenant_id)
 
 
 @router.post(
@@ -74,7 +74,7 @@ async def create_tenant(tenant_name: str, tenant_description: str = None):
 )
 async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int):
     """Update an existing tenant's information."""
-    tenant = find_item_by_id(tenant_id, tenant_list, "Tenant")
+    tenant = find_tenant_by_id(tenant_id)
     tenant.name = tenant_name
     tenant.description = tenant_description
     tenant.status = tenant_status
@@ -90,6 +90,6 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
 )
 async def delete_tenant(tenant_id: str):
     """Deletes a tenant by its ID and returns the deleted object."""
-    tenant = find_item_by_id(tenant_id, tenant_list, "Tenant")
+    tenant = find_tenant_by_id(tenant_id)
     tenant_list.remove(tenant)
     return tenant
