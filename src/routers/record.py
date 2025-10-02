@@ -5,22 +5,24 @@ This module contains routes for creating, reading, updating, and deleting record
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from ..database import record_list, Record
 from ..util import get_timestamp, find_item_by_id, find_tenant_by_id
+from ..security import get_current_user
+from ..model.user import UserAccount
 
 router = APIRouter()
 
 
 @router.get("/record/{tenant_id}", response_model=List[Record], tags=["records"])
-async def get_records(tenant_id: str, limit: int = 100, offset: int = 0):
+async def get_records(tenant_id: str, limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
     """Retrieve a list of records with optional pagination."""
     find_tenant_by_id(tenant_id)
     return [r for r in record_list if r.tenant and r.tenant.id == tenant_id][offset:offset + limit]
 
 
 @router.post("/record/{tenant_id}", response_model=Record, tags=["records"], status_code=201)
-async def create_record(tenant_id: str, record: Record):
+async def create_record(tenant_id: str, record: Record, current_user: UserAccount = Depends(get_current_user)):
     """Create a new record."""
     tenant = find_tenant_by_id(tenant_id)
     if any(r.id == record.id for r in record_list):
@@ -32,13 +34,13 @@ async def create_record(tenant_id: str, record: Record):
 
 
 @router.get("/record/{tenant_id}/{record_id}", response_model=Record, tags=["records"])
-async def get_record(tenant_id: str, record_id: str):
+async def get_record(tenant_id: str, record_id: str, current_user: UserAccount = Depends(get_current_user)):
     """Retrieve a single record by its ID."""
     return find_item_by_id(record_id, record_list, "Record", tenant_id)
 
 
 @router.put("/record/{tenant_id}/{record_id}", response_model=Record, tags=["records"])
-async def update_record(tenant_id: str, record_id: str, title: str, description: str):
+async def update_record(tenant_id: str, record_id: str, title: str, description: str, current_user: UserAccount = Depends(get_current_user)):
     """Update a record's details."""
     record = find_item_by_id(record_id, record_list, "Record", tenant_id)
     record.title = title
@@ -48,7 +50,7 @@ async def update_record(tenant_id: str, record_id: str, title: str, description:
 
 
 @router.delete("/record/{tenant_id}/{record_id}", response_model=Record, tags=["records"])
-async def delete_record(tenant_id: str, record_id: str):
+async def delete_record(tenant_id: str, record_id: str, current_user: UserAccount = Depends(get_current_user)):
     """Delete a record by its ID and return the deleted object."""
     record = find_item_by_id(record_id, record_list, "Record", tenant_id)
     record_list.remove(record)

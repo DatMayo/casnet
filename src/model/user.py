@@ -14,7 +14,8 @@ class UserAccount(BaseModel):
     """Represents a user account in the system."""
     id: str
     name: str
+    hashed_password: str
     status: EStatus = EStatus.Active
-    tenant: List[Tenant] = None
+    tenant: List[Tenant] = []
     createdAt: int = Field(default_factory=get_timestamp)
     updatedAt: int = Field(default_factory=get_timestamp)

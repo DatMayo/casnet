@@ -5,9 +5,11 @@ This module contains routes for creating, reading, updating, and deleting tenant
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from ..database import Tenant, tenant_list
 from ..util import get_timestamp, find_tenant_by_id
+from ..security import get_current_user
+from ..model.user import UserAccount
 
 router = APIRouter()
 
@@ -18,7 +20,7 @@ router = APIRouter()
     tags=["tenants"],
     summary="Lists all current existing tenants"
 )
-async def get_tenants(limit: int = 100, offset: int = 0):
+async def get_tenants(limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
     """Retrieve a list of tenants with optional pagination."""
     return tenant_list[offset:offset + limit]
 
@@ -29,7 +31,7 @@ async def get_tenants(limit: int = 100, offset: int = 0):
     tags=["tenants"],
     summary="Shows a specific tenant"
 )
-async def get_tenant(tenant_id: str):
+async def get_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
     """
     Retrieve a single tenant by its ID.
 
@@ -46,7 +48,7 @@ async def get_tenant(tenant_id: str):
     summary="Create a new tenant",
     response_description="The newly created tenant object."
 )
-async def create_tenant(tenant_name: str, tenant_description: str = None):
+async def create_tenant(tenant_name: str, tenant_description: str = None, current_user: UserAccount = Depends(get_current_user)):
     """
     Creates a new tenant in the system.
 
@@ -72,7 +74,7 @@ async def create_tenant(tenant_name: str, tenant_description: str = None):
     summary="Update an existing tenant's information",
     response_description="The updated tenant object"
 )
-async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int):
+async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int, current_user: UserAccount = Depends(get_current_user)):
     """Update an existing tenant's information."""
     tenant = find_tenant_by_id(tenant_id)
     tenant.name = tenant_name
@@ -88,7 +90,7 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
     tags=["tenants"],
     summary="Deletes a tenant by its ID"
 )
-async def delete_tenant(tenant_id: str):
+async def delete_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
     """Deletes a tenant by its ID and returns the deleted object."""
     tenant = find_tenant_by_id(tenant_id)
     tenant_list.remove(tenant)

@@ -18,6 +18,7 @@ from src.model.tag import Tag
 from src.model.task import Task
 from src.model.tenant import Tenant
 from src.model.user import UserAccount
+from src.security import get_password_hash
 
 
 tenant_list: List[Tenant] = []
@@ -110,9 +111,11 @@ for i in range(DATA_COUNT * 3):
     user = UserAccount(
         id=str(uuid.uuid4()),
         name=f"{random.choice(predefined_first_names)} {random.choice(predefined_last_names)}",
+        hashed_password=get_password_hash("password"),
         status=random.randint(0, len(EStatus) - 1),
         tenant=dummy_tenants
     )
+    print(f"User {user.name} created with {len(dummy_tenants)} tenants")
     user_list.append(user)
 
     # Create a person associated with the user and a primary tenant
