@@ -38,9 +38,12 @@ calendar_list: List[Calendar] = []
 record_list: List[Record] = []
 tag_list: List[Tag] = []
 
-# Configuration for data generation
-DATA_COUNT = 25  # Adjust this to change the amount of generated data
-ENABLE_DETAILED_LOGGING = True  # Set to False to reduce logging verbosity
+# Import configuration
+from src.config import settings
+
+# Configuration for data generation (now from environment)
+DATA_COUNT = settings.data_count
+ENABLE_DETAILED_LOGGING = settings.enable_detailed_logging
 
 predefined_tenants = [
     {"name": "LSPD", "description": "Los Santos Police Department"},
@@ -126,7 +129,7 @@ data_start = time.time()
 # Generate default password hash, so startup is faster
 DEFAULT_PASSWORD = get_password_hash("password")
 
-for i in range(DATA_COUNT * 3):
+for i in range(DATA_COUNT):
     # Log progress every 25% or every 10 items for smaller datasets
     if ENABLE_DETAILED_LOGGING:
         progress_interval = max(1, (DATA_COUNT * 3) // 4)
