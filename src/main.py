@@ -5,6 +5,7 @@ This file initializes the FastAPI application, configures middleware, and includ
 the API routers for all the application's endpoints.
 """
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from .routers import tenant, user, person, task, calendar, record, tag, auth, health
 from .exceptions import BaseAPIException
@@ -15,6 +16,34 @@ app = FastAPI(
     title=settings.api_title,
     description=settings.api_description,
     version=settings.api_version
+)
+
+# Configure CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type", 
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "User-Agent",
+        "DNT",
+        "Cache-Control",
+        "X-Mx-ReqToken",
+        "Keep-Alive",
+        "X-Requested-With",
+        "If-Modified-Since",
+    ],
+    expose_headers=[
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining", 
+        "X-RateLimit-Reset",
+        "X-RateLimit-Reset-After"
+    ]
 )
 
 

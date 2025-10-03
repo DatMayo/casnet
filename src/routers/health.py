@@ -74,7 +74,9 @@ async def detailed_health_check():
         configuration_status={
             "data_count_setting": settings.data_count,
             "logging_enabled": settings.enable_detailed_logging,
-            "cors_configured": len(settings.allowed_origins) > 0
+            "cors_configured": len(settings.allowed_origins) > 0,
+            "allowed_origins": settings.allowed_origins,
+            "environment": settings.environment
         }
     )
 

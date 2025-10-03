@@ -39,10 +39,14 @@ class Settings(BaseSettings):
     # CORS Settings
     allowed_origins: List[str] = Field(
         default=[
-            "http://localhost:3000",
+            "http://localhost:3000",   # React development server
             "http://127.0.0.1:3000", 
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
+            "http://localhost:5173",   # Vite development server
+            "http://127.0.0.1:5173",
+            "http://localhost:8080",   # Vue CLI development server
+            "http://127.0.0.1:8080",
+            "http://localhost:4200",   # Angular development server
+            "http://127.0.0.1:4200"
         ],
         env="ALLOWED_ORIGINS",
         description="Allowed CORS origins for frontend applications"
