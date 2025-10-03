@@ -3,6 +3,10 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.118.0-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=flat-square&logo=python)](https://python.org/)
 [![Pydantic](https://img.shields.io/badge/Pydantic-2.11+-e92063?style=flat-square)](https://pydantic.dev/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![GitHub issues](https://img.shields.io/github/issues/DatMayo/casnet-backend?style=flat-square)](https://github.com/DatMayo/casnet-backend/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/DatMayo/casnet-backend?style=flat-square)](https://github.com/DatMayo/casnet-backend/commits/main)
 
 > **Enterprise-Grade Multi-Tenant Backend API** - Production-ready with comprehensive security, monitoring, and developer experience features.
 
