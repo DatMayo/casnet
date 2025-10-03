@@ -4,7 +4,7 @@ This module contains routes for creating, reading, updating, and deleting user a
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from ..database import user_list, UserAccount, Tenant
 from ..util import get_timestamp, find_item_by_id
 from ..security import get_current_user, get_password_hash
@@ -45,7 +45,12 @@ async def get_users(
 
 
 @router.post("/user", response_model=UserAccount, tags=["users"], status_code=201)
-async def create_user(user_name: str, password: str, user_tenant: List[Tenant], current_user: UserAccount = Depends(get_current_user)):
+async def create_user(
+    user_tenant: List[Tenant],  # Complex types can't use Query()
+    user_name: str = Query(description="Username for the new user account"),
+    password: str = Query(description="Password for the new user account"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Create a new user account."""
     from ..exceptions import DuplicateResourceError
     
@@ -63,7 +68,10 @@ async def create_user(user_name: str, password: str, user_tenant: List[Tenant], 
 
 
 @router.get("/user/{user_id}", response_model=UserAccount, tags=["users"])
-async def get_user(user_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def get_user(
+    user_id: str = Path(description="ID of the user to retrieve"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Retrieve a single user by their ID (only if they share a tenant with current user)."""
     user = find_item_by_id(user_id, user_list, "User")
     
@@ -81,7 +89,13 @@ async def get_user(user_id: str, current_user: UserAccount = Depends(get_current
 
 
 @router.put("/user/{user_id}", response_model=UserAccount, tags=["users"])
-async def update_user(user_id: str, user_name: str, user_tenant: List[Tenant], password: str = None, current_user: UserAccount = Depends(get_current_user)):
+async def update_user(
+    user_tenant: List[Tenant],  # Complex types can't use Query()
+    user_id: str = Path(description="ID of the user to update"),
+    user_name: str = Query(description="Updated username"),
+    password: str = Query(default=None, description="Optional new password (leave empty to keep current password)"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Update an existing user's name and tenant associations (only if they share a tenant)."""
     user = find_item_by_id(user_id, user_list, "User")
     
@@ -104,7 +118,10 @@ async def update_user(user_id: str, user_name: str, user_tenant: List[Tenant], p
 
 
 @router.delete("/user/{user_id}", response_model=UserAccount, tags=["users"])
-async def delete_user(user_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def delete_user(
+    user_id: str = Path(description="ID of the user to delete"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Delete a user by their ID (only if they share a tenant with current user)."""
     user = find_item_by_id(user_id, user_list, "User")
     

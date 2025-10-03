@@ -4,20 +4,36 @@ API endpoints for tag management.
 This module contains routes for creating, reading, updating, and deleting tags.
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from ..database import tag_list, Tag
 from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
 from ..security import get_current_user
 from ..model.user import UserAccount
+from ..model.pagination import PaginatedResponse, paginate_data
 
 router = APIRouter()
 
 
-@router.get("/tag/{tenant_id}", response_model=List[Tag], tags=["tags"])
-async def get_tags(tenant_id: str, limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a list of tags with optional pagination."""
+@router.get("/tag/{tenant_id}", response_model=PaginatedResponse[Tag], tags=["tags"])
+async def get_tags(
+    tenant_id: str,
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of tags per page"),
+    current_user: UserAccount = Depends(get_current_user)
+):
+    """Retrieve a paginated list of tags for a specific tenant."""
     validate_user_tenant_access(tenant_id, current_user)
-    return [t for t in tag_list if t.tenant and t.tenant.id == tenant_id][offset:offset + limit]
+    
+    # Filter tags by tenant
+    tenant_tags = [t for t in tag_list if t.tenant and t.tenant.id == tenant_id]
+    
+    # Paginate the data
+    paginated_tags, pagination_meta = paginate_data(tenant_tags, page, page_size)
+    
+    return PaginatedResponse(
+        data=paginated_tags,
+        meta=pagination_meta
+    )
 
 
 @router.post("/tag/{tenant_id}", response_model=Tag, tags=["tags"], status_code=201)
@@ -40,7 +56,13 @@ async def get_tag(tenant_id: str, tag_id: str, current_user: UserAccount = Depen
 
 
 @router.put("/tag/{tenant_id}/{tag_id}", response_model=Tag, tags=["tags"])
-async def update_tag(tenant_id: str, tag_id: str, name: str, color: str, current_user: UserAccount = Depends(get_current_user)):
+async def update_tag(
+    tenant_id: str,
+    tag_id: str,
+    name: str = Query(description="Updated name for the tag"),
+    color: str = Query(description="Updated color code for the tag (e.g., #FF0000)"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Update a tag's details."""
     validate_user_tenant_access(tenant_id, current_user)
     tag = find_item_by_id(tag_id, tag_list, "Tag", tenant_id)

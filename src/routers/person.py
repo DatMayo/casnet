@@ -4,7 +4,7 @@ API endpoints for person management.
 This module contains routes for creating, reading, updating, and deleting persons.
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from ..database import person_list, Person
 from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
 from ..security import get_current_user
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get("/person/{tenant_id}", response_model=PaginatedResponse[Person], tags=["persons"])
 async def get_persons(
-    tenant_id: str, 
+    tenant_id: str = Path(description="ID of the tenant to retrieve persons from"), 
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
     current_user: UserAccount = Depends(get_current_user)
@@ -42,7 +42,11 @@ async def get_persons(
 
 
 @router.post("/person/{tenant_id}", response_model=Person, tags=["persons"], status_code=201)
-async def create_person(tenant_id: str, person: Person, current_user: UserAccount = Depends(get_current_user)):
+async def create_person(
+    person: Person,
+    tenant_id: str = Path(description="ID of the tenant to create the person in"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Create a new person."""
     from ..exceptions import DuplicateResourceError
     
@@ -56,14 +60,24 @@ async def create_person(tenant_id: str, person: Person, current_user: UserAccoun
 
 
 @router.get("/person/{tenant_id}/{person_id}", response_model=Person, tags=["persons"])
-async def get_person(tenant_id: str, person_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def get_person(
+    tenant_id: str = Path(description="ID of the tenant that owns the person"),
+    person_id: str = Path(description="ID of the person to retrieve"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Retrieve a single person by their ID."""
     validate_user_tenant_access(tenant_id, current_user)
     return find_item_by_id(person_id, person_list, "Person", tenant_id)
 
 
 @router.put("/person/{tenant_id}/{person_id}", response_model=Person, tags=["persons"])
-async def update_person(tenant_id: str, person_id: str, first_name: str, last_name: str, current_user: UserAccount = Depends(get_current_user)):
+async def update_person(
+    tenant_id: str = Path(description="ID of the tenant that owns the person"),
+    person_id: str = Path(description="ID of the person to update"),
+    first_name: str = Query(description="Updated first name for the person"),
+    last_name: str = Query(description="Updated last name for the person"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Update a person's details."""
     validate_user_tenant_access(tenant_id, current_user)
     person = find_item_by_id(person_id, person_list, "Person", tenant_id)
@@ -74,7 +88,11 @@ async def update_person(tenant_id: str, person_id: str, first_name: str, last_na
 
 
 @router.delete("/person/{tenant_id}/{person_id}", response_model=Person, tags=["persons"])
-async def delete_person(tenant_id: str, person_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def delete_person(
+    tenant_id: str = Path(description="ID of the tenant that owns the person"),
+    person_id: str = Path(description="ID of the person to delete"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Delete a person by their ID and return the deleted object."""
     validate_user_tenant_access(tenant_id, current_user)
     person = find_item_by_id(person_id, person_list, "Person", tenant_id)

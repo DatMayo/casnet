@@ -5,7 +5,7 @@ This module contains routes for creating, reading, updating, and deleting tenant
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from ..database import Tenant, tenant_list
 from ..util import get_timestamp, find_tenant_by_id
 from ..security import get_current_user
@@ -50,7 +50,10 @@ async def get_tenants(
     tags=["tenants"],
     summary="Shows a specific tenant"
 )
-async def get_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def get_tenant(
+    tenant_id: str = Path(description="ID of the tenant to retrieve"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """
     Retrieve a single tenant by its ID (only if user is assigned to it).
 
@@ -73,7 +76,11 @@ async def get_tenant(tenant_id: str, current_user: UserAccount = Depends(get_cur
     summary="Create a new tenant",
     response_description="The newly created tenant object."
 )
-async def create_tenant(tenant_name: str, tenant_description: str = None, current_user: UserAccount = Depends(get_current_user)):
+async def create_tenant(
+    tenant_name: str = Query(description="The name of the tenant organization"),
+    tenant_description: str = Query(default=None, description="Optional description of the tenant organization"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """
     Creates a new tenant in the system.
 
@@ -99,7 +106,13 @@ async def create_tenant(tenant_name: str, tenant_description: str = None, curren
     summary="Update an existing tenant's information",
     response_description="The updated tenant object"
 )
-async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int, current_user: UserAccount = Depends(get_current_user)):
+async def update_tenant(
+    tenant_id: str = Path(description="ID of the tenant to update"),
+    tenant_name: str = Query(description="Updated name for the tenant"),
+    tenant_description: str = Query(description="Updated description for the tenant"),
+    tenant_status: int = Query(description="Updated status code for the tenant (0=Inactive, 1=Active, 2=Disabled)"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Update an existing tenant's information (only if user is assigned to it)."""
     # Validate user has access to this tenant
     from ..exceptions import TenantAccessError
@@ -121,7 +134,10 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
     tags=["tenants"],
     summary="Deletes a tenant by its ID"
 )
-async def delete_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
+async def delete_tenant(
+    tenant_id: str = Path(description="ID of the tenant to delete"),
+    current_user: UserAccount = Depends(get_current_user)
+):
     """Deletes a tenant by its ID (only if user is assigned to it)."""
     # Validate user has access to this tenant
     from ..exceptions import TenantAccessError
