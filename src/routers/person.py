@@ -10,6 +10,7 @@ from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
 from ..security import get_current_user
 from ..model.user import UserAccount
 from ..model.pagination import PaginatedResponse, paginate_data
+from ..validation import validate_name, validate_email, sanitize_input
 
 router = APIRouter()
 
@@ -78,11 +79,13 @@ async def update_person(
     last_name: str = Query(description="Updated last name for the person"),
     current_user: UserAccount = Depends(get_current_user)
 ):
-    """Update a person's details."""
+    """Update a person's details with input validation."""
     validate_user_tenant_access(tenant_id, current_user)
     person = find_item_by_id(person_id, person_list, "Person", tenant_id)
-    person.first_name = first_name
-    person.last_name = last_name
+    
+    # Validate and sanitize input
+    person.first_name = validate_name(sanitize_input(first_name), "first_name")
+    person.last_name = validate_name(sanitize_input(last_name), "last_name")
     person.updatedAt = get_timestamp()
     return person
 

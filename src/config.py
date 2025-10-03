@@ -52,6 +52,23 @@ class Settings(BaseSettings):
         description="Allowed CORS origins for frontend applications"
     )
     
+    # Security & Limits
+    max_request_size: int = Field(
+        default=16777216,  # 16MB in bytes
+        env="MAX_REQUEST_SIZE",
+        description="Maximum request size in bytes (default: 16MB)"
+    )
+    max_string_length: int = Field(
+        default=1000,
+        env="MAX_STRING_LENGTH", 
+        description="Maximum length for string fields"
+    )
+    max_description_length: int = Field(
+        default=5000,
+        env="MAX_DESCRIPTION_LENGTH",
+        description="Maximum length for description fields"
+    )
+    
     # Database Settings (for future use)
     database_url: str = Field(
         default="sqlite:///./casnet.db", 

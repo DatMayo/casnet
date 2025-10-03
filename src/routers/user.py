@@ -9,6 +9,7 @@ from ..database import user_list, UserAccount, Tenant
 from ..util import get_timestamp, find_item_by_id
 from ..security import get_current_user, get_password_hash
 from ..model.pagination import PaginatedResponse, paginate_data
+from ..validation import validate_name, sanitize_input
 
 router = APIRouter()
 
@@ -51,16 +52,20 @@ async def create_user(
     password: str = Query(description="Password for the new user account"),
     current_user: UserAccount = Depends(get_current_user)
 ):
-    """Create a new user account."""
+    """Create a new user account with input validation."""
     from ..exceptions import DuplicateResourceError
     
-    if any(user.name == user_name for user in user_list):
-        raise DuplicateResourceError("User", user_name)
+    # Validate and sanitize input
+    validated_name = validate_name(sanitize_input(user_name), "user_name")
+    validated_password = sanitize_input(password)
+    
+    if any(user.name == validated_name for user in user_list):
+        raise DuplicateResourceError("User", validated_name)
 
     user = UserAccount(
         id=str(uuid.uuid4()),
-        name=user_name,
-        hashed_password=get_password_hash(password),
+        name=validated_name,
+        hashed_password=get_password_hash(validated_password),
         tenant=user_tenant,
     )
     user_list.append(user)
@@ -109,10 +114,12 @@ async def update_user(
     if not has_shared_tenant:
         raise AuthorizationError("Access denied: User does not share any tenants with you")
     
-    user.name = user_name
+    # Validate and sanitize input
+    user.name = validate_name(sanitize_input(user_name), "user_name")
     user.tenant = user_tenant
     if password:
-        user.hashed_password = get_password_hash(password)
+        validated_password = sanitize_input(password)
+        user.hashed_password = get_password_hash(validated_password)
     user.updatedAt = get_timestamp()
     return user
 

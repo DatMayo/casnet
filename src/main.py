@@ -7,6 +7,7 @@ the API routers for all the application's endpoints.
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import asyncio
 from .routers import tenant, user, person, task, calendar, record, tag, auth, health
 from .exceptions import BaseAPIException
 from .model.error import BaseErrorResponse
@@ -17,6 +18,29 @@ app = FastAPI(
     description=settings.api_description,
     version=settings.api_version
 )
+
+
+# Custom middleware for request size limiting
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    """Limit request body size to prevent large payload attacks."""
+    if request.method in ["POST", "PUT", "PATCH"]:
+        content_length = request.headers.get("content-length")
+        if content_length:
+            content_length = int(content_length)
+            if content_length > settings.max_request_size:
+                error_response = BaseErrorResponse(
+                    error_code="REQUEST_TOO_LARGE",
+                    message=f"Request body too large. Maximum size: {settings.max_request_size} bytes"
+                )
+                return JSONResponse(
+                    status_code=413,
+                    content=error_response.dict()
+                )
+    
+    response = await call_next(request)
+    return response
+
 
 # Configure CORS middleware
 app.add_middleware(
