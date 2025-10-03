@@ -4,78 +4,141 @@ API endpoints for tag management.
 This module contains routes for creating, reading, updating, and deleting tags.
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query
-from ..database import tag_list, Tag
-from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import Tag, User
 from ..security import get_current_user
-from ..model.user import UserAccount
-from ..model.pagination import PaginatedResponse, paginate_data
+from ..schemas.pagination import PaginatedResponse
+from ..schemas.tag import TagCreate, TagUpdate, TagResponse
 
 router = APIRouter()
 
 
-@router.get("/tag/{tenant_id}", response_model=PaginatedResponse[Tag], tags=["tags"])
+@router.get("/tag/{tenant_id}", response_model=PaginatedResponse[TagResponse], tags=["tags"])
 async def get_tags(
-    tenant_id: str,
+    tenant_id: str = Path(description="ID of the tenant to retrieve tags from"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of tags per page"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Retrieve a paginated list of tags for a specific tenant."""
-    validate_user_tenant_access(tenant_id, current_user)
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    tags_query = db.query(Tag).filter(Tag.tenant_id == tenant_id)
     
-    # Filter tags by tenant
-    tenant_tags = [t for t in tag_list if t.tenant and t.tenant.id == tenant_id]
+    total_count = tags_query.count()
     
-    # Paginate the data
-    paginated_tags, pagination_meta = paginate_data(tenant_tags, page, page_size)
+    offset = (page - 1) * page_size
+    tags = tags_query.offset(offset).limit(page_size).all()
     
+    total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
-        data=paginated_tags,
-        meta=pagination_meta
+        data=tags,
+        meta={
+            "total_items": total_count,
+            "total_pages": total_pages,
+            "current_page": page,
+            "page_size": page_size,
+            "has_next": page < total_pages,
+            "has_previous": page > 1,
+            "next_page": page + 1 if page < total_pages else None,
+            "previous_page": page - 1 if page > 1 else None
+        }
     )
 
 
-@router.post("/tag/{tenant_id}", response_model=Tag, tags=["tags"], status_code=201)
-async def create_tag(tenant_id: str, tag: Tag, current_user: UserAccount = Depends(get_current_user)):
-    """Create a new tag."""
-    tenant = validate_user_tenant_access(tenant_id, current_user)
-    if any(t.id == tag.id for t in tag_list):
-        raise HTTPException(status_code=400, detail="A tag with that ID already exists")
+@router.post("/tag/{tenant_id}", response_model=TagResponse, tags=["tags"], status_code=201)
+async def create_tag(
+    tag_data: TagCreate,
+    tenant_id: str = Path(description="ID of the tenant to create the tag in"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new tag within a specific tenant."""
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
 
-    tag.tenant = tenant
-    tag_list.append(tag)
+    new_tag = Tag(
+        **tag_data.model_dump(),
+        tenant_id=tenant_id
+    )
+    db.add(new_tag)
+    db.commit()
+    db.refresh(new_tag)
+    return new_tag
+
+
+@router.get("/tag/{tenant_id}/{tag_id}", response_model=TagResponse, tags=["tags"])
+async def get_tag(
+    tenant_id: str = Path(description="ID of the tenant that owns the tag"),
+    tag_id: str = Path(description="ID of the tag to retrieve"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve a single tag by its ID."""
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.tenant_id == tenant_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail=f"Tag with ID {tag_id} not found in this tenant")
     return tag
 
 
-@router.get("/tag/{tenant_id}/{tag_id}", response_model=Tag, tags=["tags"])
-async def get_tag(tenant_id: str, tag_id: str, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a single tag by its ID."""
-    validate_user_tenant_access(tenant_id, current_user)
-    return find_item_by_id(tag_id, tag_list, "Tag", tenant_id)
-
-
-@router.put("/tag/{tenant_id}/{tag_id}", response_model=Tag, tags=["tags"])
+@router.put("/tag/{tenant_id}/{tag_id}", response_model=TagResponse, tags=["tags"])
 async def update_tag(
-    tenant_id: str,
-    tag_id: str,
-    name: str = Query(description="Updated name for the tag"),
-    color: str = Query(description="Updated color code for the tag (e.g., #FF0000)"),
-    current_user: UserAccount = Depends(get_current_user)
+    tag_data: TagUpdate,
+    tenant_id: str = Path(description="ID of the tenant that owns the tag"),
+    tag_id: str = Path(description="ID of the tag to update"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Update a tag's details."""
-    validate_user_tenant_access(tenant_id, current_user)
-    tag = find_item_by_id(tag_id, tag_list, "Tag", tenant_id)
-    tag.name = name
-    tag.color = color
-    tag.updatedAt = get_timestamp()
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.tenant_id == tenant_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail=f"Tag with ID {tag_id} not found in this tenant")
+
+    update_data = tag_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(tag, key, value)
+    
+    db.commit()
+    db.refresh(tag)
     return tag
 
 
-@router.delete("/tag/{tenant_id}/{tag_id}", response_model=Tag, tags=["tags"])
-async def delete_tag(tenant_id: str, tag_id: str, current_user: UserAccount = Depends(get_current_user)):
-    """Delete a tag by its ID and return the deleted object."""
-    validate_user_tenant_access(tenant_id, current_user)
-    tag = find_item_by_id(tag_id, tag_list, "Tag", tenant_id)
-    tag_list.remove(tag)
+@router.delete("/tag/{tenant_id}/{tag_id}", response_model=TagResponse, tags=["tags"])
+async def delete_tag(
+    tenant_id: str = Path(description="ID of the tenant that owns the tag"),
+    tag_id: str = Path(description="ID of the tag to delete"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a tag by its ID."""
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.tenant_id == tenant_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail=f"Tag with ID {tag_id} not found in this tenant")
+
+    db.delete(tag)
+    db.commit()
     return tag

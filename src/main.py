@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 import asyncio
 from .routers import tenant, user, person, task, calendar, record, tag, auth, health
 from .exceptions import BaseAPIException
-from .model.error import BaseErrorResponse
+from .schemas.error import BaseErrorResponse
 from .config import settings
 
 app = FastAPI(

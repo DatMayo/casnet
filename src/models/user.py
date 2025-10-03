@@ -36,22 +36,3 @@ class User(Base, UUIDMixin, TimestampMixin):
     
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name={self.name})>"
-
-
-class UserTenant(Base):
-    """
-    Association model for user-tenant relationships.
-    This can be extended in the future to include roles, permissions, etc.
-    """
-    
-    __tablename__ = 'user_tenants'
-    
-    user_id: Mapped[str] = mapped_column(String(36), ForeignKey('users.id'), primary_key=True)
-    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey('tenants.id'), primary_key=True)
-    
-    # Future extensions could include:
-    # role: Mapped[str] = mapped_column(String(50), default="member")
-    # permissions: Mapped[str] = mapped_column(Text, nullable=True)  # JSON field
-    
-    def __repr__(self) -> str:
-        return f"<UserTenant(user_id={self.user_id}, tenant_id={self.tenant_id})>"

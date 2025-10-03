@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from src.config import settings
 from src.models import Base, User
-from src.security import get_password_hash
+from src.hashing import get_password_hash
 
 # Configure logging for database initialization
 logging.basicConfig(level=logging.INFO)

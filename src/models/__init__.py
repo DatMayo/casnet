@@ -5,7 +5,7 @@ This package contains all database models using SQLAlchemy ORM.
 """
 
 from .base import Base
-from .user import User, UserTenant
+from .user import User
 from .tenant import Tenant
 from .person import Person
 from .task import Task
