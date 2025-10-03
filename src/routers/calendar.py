@@ -4,78 +4,141 @@ API endpoints for calendar management.
 This module contains routes for creating, reading, updating, and deleting calendar events.
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query
-from ..database import calendar_list, Calendar
-from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import Calendar, User
 from ..security import get_current_user
-from ..model.user import UserAccount
-from ..model.pagination import PaginatedResponse, paginate_data
+from ..schemas.pagination import PaginatedResponse
+from ..schemas.calendar import CalendarCreate, CalendarUpdate, CalendarResponse
 
 router = APIRouter()
 
 
-@router.get("/calendar/{tenant_id}", response_model=PaginatedResponse[Calendar], tags=["calendar"])
-async def get_calendars(
-    tenant_id: str,
+@router.get("/calendar/{tenant_id}", response_model=PaginatedResponse[CalendarResponse], tags=["calendar"])
+async def get_calendar_events(
+    tenant_id: str = Path(description="ID of the tenant to retrieve calendar events from"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
-    page_size: int = Query(default=20, ge=1, le=100, description="Number of calendar events per page"),
-    current_user: UserAccount = Depends(get_current_user)
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of events per page"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Retrieve a paginated list of calendar events for a specific tenant."""
-    validate_user_tenant_access(tenant_id, current_user)
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    events_query = db.query(Calendar).filter(Calendar.tenant_id == tenant_id)
     
-    # Filter calendar events by tenant
-    tenant_calendars = [c for c in calendar_list if c.tenant and c.tenant.id == tenant_id]
+    total_count = events_query.count()
     
-    # Paginate the data
-    paginated_calendars, pagination_meta = paginate_data(tenant_calendars, page, page_size)
+    offset = (page - 1) * page_size
+    events = events_query.offset(offset).limit(page_size).all()
     
+    total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
-        data=paginated_calendars,
-        meta=pagination_meta
+        data=events,
+        meta={
+            "total_items": total_count,
+            "total_pages": total_pages,
+            "current_page": page,
+            "page_size": page_size,
+            "has_next": page < total_pages,
+            "has_previous": page > 1,
+            "next_page": page + 1 if page < total_pages else None,
+            "previous_page": page - 1 if page > 1 else None
+        }
     )
 
 
-@router.post("/calendar/{tenant_id}", response_model=Calendar, tags=["calendar"], status_code=201)
-async def create_calendar(tenant_id: str, calendar: Calendar, current_user: UserAccount = Depends(get_current_user)):
-    """Create a new calendar event."""
-    tenant = validate_user_tenant_access(tenant_id, current_user)
-    if any(c.id == calendar.id for c in calendar_list):
-        raise HTTPException(status_code=400, detail="A calendar event with that ID already exists")
+@router.post("/calendar/{tenant_id}", response_model=CalendarResponse, tags=["calendar"], status_code=201)
+async def create_calendar_event(
+    calendar_data: CalendarCreate,
+    tenant_id: str = Path(description="ID of the tenant to create the event in"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new calendar event within a specific tenant."""
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
 
-    calendar.tenant = tenant
-    calendar_list.append(calendar)
-    return calendar
+    new_event = Calendar(
+        **calendar_data.model_dump(),
+        tenant_id=tenant_id
+    )
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+    return new_event
 
 
-@router.get("/calendar/{tenant_id}/{calendar_id}", response_model=Calendar, tags=["calendar"])
-async def get_calendar(tenant_id: str, calendar_id: str, current_user: UserAccount = Depends(get_current_user)):
+@router.get("/calendar/{tenant_id}/{event_id}", response_model=CalendarResponse, tags=["calendar"])
+async def get_calendar_event(
+    tenant_id: str = Path(description="ID of the tenant that owns the event"),
+    event_id: str = Path(description="ID of the event to retrieve"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Retrieve a single calendar event by its ID."""
-    validate_user_tenant_access(tenant_id, current_user)
-    return find_item_by_id(calendar_id, calendar_list, "Calendar", tenant_id)
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    event = db.query(Calendar).filter(Calendar.id == event_id, Calendar.tenant_id == tenant_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail=f"Calendar event with ID {event_id} not found in this tenant")
+    return event
 
 
-@router.put("/calendar/{tenant_id}/{calendar_id}", response_model=Calendar, tags=["calendar"])
-async def update_calendar(
-    tenant_id: str,
-    calendar_id: str,
-    title: str = Query(description="Updated title for the calendar event"),
-    description: str = Query(description="Updated description for the calendar event"),
-    current_user: UserAccount = Depends(get_current_user)
+@router.put("/calendar/{tenant_id}/{event_id}", response_model=CalendarResponse, tags=["calendar"])
+async def update_calendar_event(
+    calendar_data: CalendarUpdate,
+    tenant_id: str = Path(description="ID of the tenant that owns the event"),
+    event_id: str = Path(description="ID of the event to update"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Update a calendar event's details."""
-    validate_user_tenant_access(tenant_id, current_user)
-    calendar = find_item_by_id(calendar_id, calendar_list, "Calendar", tenant_id)
-    calendar.title = title
-    calendar.description = description
-    calendar.updatedAt = get_timestamp()
-    return calendar
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    event = db.query(Calendar).filter(Calendar.id == event_id, Calendar.tenant_id == tenant_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail=f"Calendar event with ID {event_id} not found in this tenant")
+
+    update_data = calendar_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(event, key, value)
+    
+    db.commit()
+    db.refresh(event)
+    return event
 
 
-@router.delete("/calendar/{tenant_id}/{calendar_id}", response_model=Calendar, tags=["calendar"])
-async def delete_calendar(tenant_id: str, calendar_id: str, current_user: UserAccount = Depends(get_current_user)):
-    """Delete a calendar event by its ID and return the deleted object."""
-    validate_user_tenant_access(tenant_id, current_user)
-    calendar = find_item_by_id(calendar_id, calendar_list, "Calendar", tenant_id)
-    calendar_list.remove(calendar)
-    return calendar
+@router.delete("/calendar/{tenant_id}/{event_id}", response_model=CalendarResponse, tags=["calendar"])
+async def delete_calendar_event(
+    tenant_id: str = Path(description="ID of the tenant that owns the event"),
+    event_id: str = Path(description="ID of the event to delete"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a calendar event by its ID."""
+    from ..exceptions import TenantAccessError
+    user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+
+    event = db.query(Calendar).filter(Calendar.id == event_id, Calendar.tenant_id == tenant_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail=f"Calendar event with ID {event_id} not found in this tenant")
+
+    db.delete(event)
+    db.commit()
+    return event

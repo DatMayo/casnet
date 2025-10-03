@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 import asyncio
 from .routers import tenant, user, person, task, calendar, record, tag, auth, health
 from .exceptions import BaseAPIException
-from .model.error import BaseErrorResponse
+from .schemas.error import BaseErrorResponse
 from .config import settings
 
 app = FastAPI(
@@ -45,7 +45,7 @@ async def limit_upload_size(request: Request, call_next):
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[

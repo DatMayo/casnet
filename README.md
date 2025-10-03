@@ -8,8 +8,6 @@
 
 A high-performance FastAPI-based backend application designed for **roleplay servers** and departmental management systems. Features a complete suite of CRUD API endpoints with advanced security, multi-tenant isolation, comprehensive validation, and enterprise monitoring capabilities.
 
-> **🚧 Work in Progress Notice**  
-> This project currently uses **in-memory dummy data** for development and demonstration purposes. While the API architecture, security features, and endpoint functionality are production-ready, **persistent data storage is not yet implemented**. See the [Database Migration](#-deployment) section for production deployment guidance.
 
 ## ✨ Key Features
 
@@ -18,10 +16,12 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 - 📊 **Rich API Documentation** - Auto-generated with comprehensive parameter descriptions
 - 🔄 **Pagination Support** - Frontend-ready with metadata for UI components
 - 🏥 **Health Monitoring** - Kubernetes-compatible readiness/liveness probes
-- ⚡ **High Performance** - Optimized startup (0.3s vs 23s), request validation
-- 🐳 **Docker Ready** - Working containerization with hot reload development
-- 🌐 **CORS Ready** - Configured for all major frontend frameworks
-- 🎯 **Developer Experience** - Structured errors, comprehensive logging, hot reload
+- 💾 **Persistent Database** - Uses SQLite by default for reliable data storage.
+- 🚀 **SQLAlchemy 2.0** - Modern, fully-typed data models and queries.
+- 🐳 **Docker Ready** - Includes `Dockerfile` and `docker-compose.yml` for easy containerization.
+- ⚡ **High Performance** - Asynchronous and built for speed.
+- 🌐 **CORS Ready** - Configured for all major frontend frameworks.
+- 🎯 **Developer Experience** - Structured errors, comprehensive logging, hot reload.
 
 ## 🏗️ Project Structure
 
@@ -29,34 +29,19 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 casnet-backend/
 ├── src/                    # Application source code
 │   ├── enum/               # Enumerations (EStatus, EGender)
-│   ├── model/              # Pydantic data models
-│   │   ├── user.py         # User account models  
-│   │   ├── tenant.py       # Tenant/department models
-│   │   ├── person.py       # Person profile models
-│   │   ├── task.py         # Task management models
-│   │   ├── calendar.py     # Calendar event models
-│   │   ├── record.py       # Record/case file models
-│   │   ├── tag.py          # Tag system models
-│   │   ├── error.py        # Structured error models
-│   │   ├── health.py       # Health check models
-│   │   └── pagination.py   # Pagination metadata models
+│   ├── models/             # SQLAlchemy 2.0 database models
+│   ├── schemas/            # Pydantic data validation schemas
 │   ├── routers/            # API endpoint definitions
-│   │   ├── auth.py         # JWT authentication
-│   │   ├── health.py       # Health monitoring endpoints
-│   │   ├── user.py         # User management CRUD
-│   │   ├── tenant.py       # Tenant management CRUD  
-│   │   ├── person.py       # Person profile CRUD
-│   │   ├── task.py         # Task management CRUD
-│   │   ├── calendar.py     # Calendar events CRUD
-│   │   ├── record.py       # Record management CRUD
-│   │   └── tag.py          # Tag system CRUD
 │   ├── config.py           # Environment configuration
-│   ├── database.py         # In-memory database & dummy data
+│   ├── database.py         # Database session and initialization
 │   ├── exceptions.py       # Custom exception classes
+│   ├── hashing.py          # Password hashing utilities
 │   ├── main.py             # FastAPI application entry point
-│   ├── security.py         # JWT & password utilities
-│   ├── util.py             # Helper functions
+│   ├── security.py         # JWT & authentication utilities
+│   ├── util.py             # General helper functions
 │   └── validation.py       # Input validation & sanitization
+├── data/
+│   └── casnet.db           # SQLite database file (gitignored)
 ├── Dockerfile              # Multi-stage Docker build
 ├── docker-compose.yml      # Development environment
 ├── .dockerignore           # Docker ignore patterns
@@ -68,39 +53,16 @@ casnet-backend/
 ## 🔗 API Endpoints
 
 ### Core Resources
-All endpoints feature **pagination**, **comprehensive validation**, and **multi-tenant security**.
+Full CRUD operations with pagination are available for all core resources. For a complete list of endpoints, parameters, and request/response examples, please see the **[Interactive API Documentation](#-api-documentation)**.
 
-#### 👥 **Users & Authentication**
-- `POST /token` - JWT authentication
-- `GET /user?page=1&page_size=20` - List users (paginated)
-- `POST /user` - Create user account
-- `GET /user/{user_id}` - Get user details
-- `PUT /user/{user_id}` - Update user
-- `DELETE /user/{user_id}` - Delete user
-
-#### 🏢 **Tenant Management**  
-- `GET /tenant?page=1&page_size=20` - List tenants (paginated)
-- `POST /tenant` - Create tenant
-- `GET /tenant/{tenant_id}` - Get tenant details
-- `PUT /tenant/{tenant_id}` - Update tenant
-- `DELETE /tenant/{tenant_id}` - Delete tenant
-
-#### 👤 **Person Profiles**
-- `GET /person/{tenant_id}?page=1&page_size=20` - List persons (paginated)
-- `POST /person/{tenant_id}` - Create person profile
-- `GET /person/{tenant_id}/{person_id}` - Get person details
-- `PUT /person/{tenant_id}/{person_id}` - Update person
-- `DELETE /person/{tenant_id}/{person_id}` - Delete person
-
-#### 📋 **Tasks & Calendar**
-- `GET /task/{tenant_id}?page=1&page_size=20` - List tasks (paginated)
-- `GET /calendar/{tenant_id}?page=1&page_size=20` - List calendar events (paginated)
-- Full CRUD operations for both resources
-
-#### 📁 **Records & Tags**  
-- `GET /record/{tenant_id}?page=1&page_size=20` - List records (paginated)
-- `GET /tag/{tenant_id}?page=1&page_size=20` - List tags (paginated)
-- Full CRUD operations for both resources
+- **Authentication**: `POST /token`
+- **Users**: `/user`
+- **Tenants**: `/tenant`
+- **Persons**: `/person/{tenant_id}`
+- **Tasks**: `/task/{tenant_id}`
+- **Calendar Events**: `/calendar/{tenant_id}`
+- **Records**: `/record/{tenant_id}`
+- **Tags**: `/tag/{tenant_id}`
 
 ### 🏥 Health & Monitoring
 - `GET /health` - Basic health check
@@ -119,7 +81,7 @@ All endpoints feature **pagination**, **comprehensive validation**, and **multi-
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/DatMayo/casnet-backend.git
 cd casnet-backend
 
 # Start the FastAPI development server
@@ -140,57 +102,23 @@ docker-compose logs -f casnet-api
 
 ### 🐍 Alternative: Local Python Setup
 
-#### Prerequisites
-- **Python 3.11+**
-- **pip** (Python package manager)
-- **Docker** (recommended even for local development)
-
-### Installation
-
-1. **Clone the Repository**
+1. **Clone & Setup Virtual Environment**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/DatMayo/casnet-backend.git
    cd casnet-backend
+   python3 -m venv venv
+   source venv/bin/activate
    ```
 
-2. **Create Virtual Environment** (Recommended)
-   ```bash
-   python -m venv .venv
-   
-   # Windows
-   .venv\Scripts\activate
-   
-   # macOS/Linux  
-   source .venv/bin/activate
-   ```
-
-3. **Install Dependencies**
+2. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Configure Environment**
+3. **Run the Application**
    ```bash
-   # Copy the example environment file
-   cp .env.example .env
-   
-   # Edit .env with your preferred settings (optional)
-   ```
-
-5. **Run the Application**
-   ```bash
-   # Development server with hot reload
-   fastapi dev src/main.py
-   
-   # Or using uvicorn directly
    uvicorn src.main:app --reload
    ```
-
-6. **Access the API**
-   - **API Base URL**: `http://127.0.0.1:8000`
-   - **Interactive Documentation**: `http://127.0.0.1:8000/docs`
-   - **Alternative Documentation**: `http://127.0.0.1:8000/redoc`
-   - **Health Check**: `http://127.0.0.1:8000/health`
 
 ## ⚙️ Configuration
 
@@ -226,7 +154,8 @@ MAX_DESCRIPTION_LENGTH=5000
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_COUNT` | `10` | Number of dummy records to generate |
+| `DATABASE_URL` | `sqlite:///./data/casnet.db` | Database connection string |
+| `DATA_COUNT` | `10` | Number of dummy records to generate on first run |
 | `MAX_REQUEST_SIZE` | `16777216` | Maximum request size in bytes (16MB) |
 | `MAX_STRING_LENGTH` | `1000` | Maximum length for string fields |
 | `ALLOWED_ORIGINS` | Development URLs | CORS allowed origins |
@@ -327,34 +256,29 @@ The development server supports hot reload - changes to source files automatical
 Use the interactive documentation at `/docs` to test endpoints directly in your browser.
 
 ### Adding New Endpoints
-1. Create/update Pydantic models in `src/model/`
-2. Add router functions in `src/routers/`
-3. Include the router in `src/main.py`
-4. Add validation using functions from `src/validation.py`
+1.  **Model**: Create or update a SQLAlchemy model in `src/models/`.
+2.  **Schema**: Define Pydantic validation schemas in `src/schemas/`.
+3.  **Router**: Add a new router file with CRUD endpoints in `src/routers/`.
+4.  **Main**: Include the new router in `src/main.py`.
 
-## 📈 Performance
+## ⚙️ Database
 
-### Optimizations Applied
-- **79x faster startup** (0.3s vs 23s) through optimized data generation  
-- **Request size limiting** prevents resource exhaustion
-- **Efficient pagination** with metadata caching
-- **Input validation** with early rejection of invalid requests
+This application uses **SQLAlchemy 2.0** for its ORM and comes pre-configured to use a **persistent SQLite database**. 
 
-### Database Notes
+- The database file is located at `data/casnet.db`.
+- The `data/` directory is automatically created and is included in `.gitignore`.
 
-> **⚠️ Important**: This application currently uses an **in-memory database** with dummy data for development and demonstration purposes. **All data is lost when the server restarts.**
-
-**Current State:**
-- ✅ **API Architecture**: Production-ready
-- ✅ **Security Features**: Enterprise-grade
-- ✅ **Validation & Monitoring**: Complete
-- 🚧 **Data Persistence**: In-memory only (development)
-
-**For Production Deployment:**
-- Replace in-memory storage with **PostgreSQL** (recommended) or similar persistent database
-- Update connection strings in configuration
-- Run database migrations
-- The current architecture supports easy migration with minimal code changes
+### Migrating to PostgreSQL
+For a more robust production environment, you can switch to PostgreSQL:
+1.  Update the `DATABASE_URL` in your `.env` file:
+    ```env
+    DATABASE_URL=postgresql://username:password@localhost:5432/casnet
+    ```
+2.  Install the PostgreSQL driver:
+    ```bash
+    pip install psycopg2-binary
+    ```
+3.  Restart the application.
 
 ## 🐳 Docker Support
 
@@ -363,7 +287,7 @@ Use the interactive documentation at `/docs` to test endpoints directly in your 
 **🚀 Recommended: Start with Docker (Easiest) - ✅ Verified Working**
 ```bash
 # Clone and start the development environment
-git clone <repository-url>
+git clone https://github.com/DatMayo/casnet-backend.git
 cd casnet-backend
 
 # Start the FastAPI container (API only)
@@ -389,8 +313,8 @@ docker-compose down
 
 #### **Development Stack (`docker-compose.yml`)**
 - **FastAPI**: Development server with hot reload on port 8000
-- **PostgreSQL**: Ready for database migration (profile: `full-stack`)
-- **Redis**: Prepared for caching and rate limiting (profile: `full-stack`)
+- **PostgreSQL**: Optional database service (profile: `full-stack`)
+- **Redis**: Optional caching service (profile: `full-stack`)
 
 #### **Services Overview**
 
@@ -430,8 +354,8 @@ docker-compose restart casnet-api       # Restart API container
 - **✅ Health Monitoring**: Container reports healthy status  
 - **✅ Port Mapping**: Correctly exposed on localhost:8000
 - **✅ Interactive Docs**: Available at http://localhost:8000/docs
-- **✅ OpenAPI Schema**: 51KB+ comprehensive API documentation
-- **🔧 Database**: PostgreSQL ready but requires profile activation
+- **✅ OpenAPI Schema**: Comprehensive API documentation automatically generated.
+- **🔧 Database**: PostgreSQL container is available but requires the `full-stack` profile to be activated.
 
 ## 🚀 Deployment
 
@@ -461,19 +385,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🎯 What's Next?
 
-### Recommended Next Steps
+This project now serves as a robust foundation for any multi-tenant application. Recommended next steps include:
 
-#### **🚧 For Production Readiness:**
-1. **Database Migration** - **Priority #1**: Replace in-memory storage with PostgreSQL or similar persistent database
-2. **Data Persistence** - Implement proper database models and migrations
-3. **Production Configuration** - Environment-specific settings and secrets management
-
-#### **🚀 For Enhanced Features:**
-4. **Frontend Development** - API is ready for React/Vue/Angular integration  
-5. **Rate Limiting** - Implement Redis-based rate limiting
-6. **Caching** - Add response caching for improved performance
-7. **File Uploads** - Support for document/image attachments
-8. **Real-time Features** - WebSocket support for live updates
-
-**The backend architecture is production-ready and optimized for frontend development!** 🚀  
-**Next step: Add persistent data storage for full production deployment.**
+- **Frontend Development**: The API is ready for integration with any modern frontend framework (React, Vue, Angular, etc.).
+- **Implement Caching**: Integrate Redis (already available in Docker) for response caching to improve performance.
+- **Add Rate Limiting**: Implement request rate limiting to protect against abuse.
+- **File Uploads**: Extend the API to support file uploads for records or user profiles.

@@ -7,9 +7,9 @@ HTTP responses with structured error models.
 from typing import List, Optional
 from fastapi import HTTPException, status
 
-from src.model.error import (
+from src.schemas.error import (
     BaseErrorResponse,
-    ValidationErrorResponse, 
+    ValidationErrorResponse,
     ValidationErrorDetail,
     AuthenticationErrorResponse,
     AuthorizationErrorResponse,

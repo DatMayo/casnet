@@ -7,28 +7,29 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
-from src.database import user_list
-from src.model.user import UserAccount
+from src.database import get_db
+from src.models import User
 from src.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, verify_password
 
 router = APIRouter()
 
 
-def get_user(username: str) -> UserAccount:
+def get_user(username: str, db: Session) -> User:
     """Retrieve a user from the database by their username."""
-    for user in user_list:
-        if user.name == username:
-            return user
-    return None
+    return db.query(User).filter(User.name == username).first()
 
 
 @router.post("/token", tags=["authentication"])
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
     """Authenticate a user and return a JWT access token."""
     from src.exceptions import InvalidCredentialsError
     
-    user = get_user(form_data.username)
+    user = get_user(form_data.username, db)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise InvalidCredentialsError()
     

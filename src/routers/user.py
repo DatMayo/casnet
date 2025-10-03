@@ -1,146 +1,172 @@
 """
+User router for creating, reading, updating, and deleting user accounts.
 
-This module contains routes for creating, reading, updating, and deleting user accounts.
+This module provides CRUD operations for user management with SQLAlchemy.
 """
 import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from ..database import user_list, UserAccount, Tenant
-from ..util import get_timestamp, find_item_by_id
-from ..security import get_current_user, get_password_hash
-from ..model.pagination import PaginatedResponse, paginate_data
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from ..database import get_db
+from ..models import User, Tenant
+from ..security import get_current_user
+from ..hashing import get_password_hash
+from ..schemas.pagination import PaginatedResponse
+from ..schemas.user import UserCreate, UserUpdate, UserResponse
 from ..validation import validate_name, sanitize_input
 
 router = APIRouter()
 
 
-@router.get("/user", response_model=PaginatedResponse[UserAccount], tags=["users"])
+@router.get("/user", response_model=PaginatedResponse[UserResponse], tags=["users"])
 async def get_users(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Retrieve a paginated list of users that share tenants with the current user.
-    
-    Returns only users who share at least one tenant with the requesting user,
-    with pagination metadata for building frontend pagination controls.
     """
-    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    user_tenant_ids = {t.id for t in current_user.tenants}
     
-    # Find users that share at least one tenant with current user
-    shared_users = []
-    for user in user_list:
-        if user.tenant:
-            user_has_shared_tenant = any(t.id in user_tenant_ids for t in user.tenant)
-            if user_has_shared_tenant:
-                shared_users.append(user)
+    if not user_tenant_ids:
+        return PaginatedResponse(data=[], meta={
+            "total_items": 0, "total_pages": 0, "current_page": page, "page_size": page_size, 
+            "has_next": False, "has_previous": False, "next_page": None, "previous_page": None
+        })
     
-    # Paginate the filtered users
-    paginated_users, pagination_meta = paginate_data(shared_users, page, page_size)
+    shared_users_query = db.query(User).join(User.tenants).filter(Tenant.id.in_(user_tenant_ids)).distinct()
     
+    total_count = shared_users_query.count()
+    
+    offset = (page - 1) * page_size
+    users = shared_users_query.offset(offset).limit(page_size).all()
+    
+    total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
-        data=paginated_users,
-        meta=pagination_meta
+        data=users,
+        meta={
+            "total_items": total_count,
+            "total_pages": total_pages,
+            "current_page": page,
+            "page_size": page_size,
+            "has_next": page < total_pages,
+            "has_previous": page > 1,
+            "next_page": page + 1 if page < total_pages else None,
+            "previous_page": page - 1 if page > 1 else None
+        }
     )
 
 
-@router.post("/user", response_model=UserAccount, tags=["users"], status_code=201)
+@router.post("/user", response_model=UserResponse, tags=["users"], status_code=201)
 async def create_user(
-    user_tenant: List[Tenant],  # Complex types can't use Query()
-    user_name: str = Query(description="Username for the new user account"),
-    password: str = Query(description="Password for the new user account"),
-    current_user: UserAccount = Depends(get_current_user)
+    user_data: UserCreate,
+    db: Session = Depends(get_db)
 ):
-    """Create a new user account with input validation."""
+    """Create a new user account. This is an open endpoint and does not require authentication."""
     from ..exceptions import DuplicateResourceError
     
-    # Validate and sanitize input
-    validated_name = validate_name(sanitize_input(user_name), "user_name")
-    validated_password = sanitize_input(password)
+    validated_name = validate_name(sanitize_input(user_data.name), "user_name")
     
-    if any(user.name == validated_name for user in user_list):
+    existing_user = db.query(User).filter(User.name == validated_name).first()
+    if existing_user:
         raise DuplicateResourceError("User", validated_name)
 
-    user = UserAccount(
-        id=str(uuid.uuid4()),
+    new_user = User(
         name=validated_name,
-        hashed_password=get_password_hash(validated_password),
-        tenant=user_tenant,
+        hashed_password=get_password_hash(sanitize_input(user_data.password))
     )
-    user_list.append(user)
-    return user
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
 
 
-@router.get("/user/{user_id}", response_model=UserAccount, tags=["users"])
+@router.get("/user/{user_id}", response_model=UserResponse, tags=["users"])
 async def get_user(
     user_id: str = Path(description="ID of the user to retrieve"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Retrieve a single user by their ID (only if they share a tenant with current user)."""
-    user = find_item_by_id(user_id, user_list, "User")
-    
-    # Check if the requested user shares any tenant with current user
     from ..exceptions import AuthorizationError
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
     
-    current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
-    target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
+    current_user_tenant_ids = {t.id for t in current_user.tenants}
+    target_user_tenant_ids = {t.id for t in user.tenants}
     
-    has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
-    if not has_shared_tenant:
+    if not current_user_tenant_ids.intersection(target_user_tenant_ids):
         raise AuthorizationError("Access denied: User does not share any tenants with you")
     
     return user
 
 
-@router.put("/user/{user_id}", response_model=UserAccount, tags=["users"])
+@router.put("/user/{user_id}", response_model=UserResponse, tags=["users"])
 async def update_user(
-    user_tenant: List[Tenant],  # Complex types can't use Query()
+    user_data: UserUpdate,
     user_id: str = Path(description="ID of the user to update"),
-    user_name: str = Query(description="Updated username"),
-    password: str = Query(default=None, description="Optional new password (leave empty to keep current password)"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Update an existing user's name and tenant associations (only if they share a tenant)."""
-    user = find_item_by_id(user_id, user_list, "User")
+    """Update an existing user's name and password (only if they share a tenant)."""
+    from ..exceptions import AuthorizationError, DuplicateResourceError
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
     
-    # Check if the target user shares any tenant with current user
-    from ..exceptions import AuthorizationError
-    
-    current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
-    target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
-    
-    has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
-    if not has_shared_tenant:
+    current_user_tenant_ids = {t.id for t in current_user.tenants}
+    target_user_tenant_ids = {t.id for t in user.tenants}
+
+    if not current_user_tenant_ids.intersection(target_user_tenant_ids):
         raise AuthorizationError("Access denied: User does not share any tenants with you")
     
-    # Validate and sanitize input
-    user.name = validate_name(sanitize_input(user_name), "user_name")
-    user.tenant = user_tenant
-    if password:
-        validated_password = sanitize_input(password)
-        user.hashed_password = get_password_hash(validated_password)
-    user.updatedAt = get_timestamp()
+    update_data = user_data.model_dump(exclude_unset=True)
+    
+    if 'name' in update_data:
+        validated_name = validate_name(sanitize_input(update_data['name']), "user_name")
+        existing_user = db.query(User).filter(User.name == validated_name, User.id != user_id).first()
+        if existing_user:
+            raise DuplicateResourceError("User", validated_name)
+        user.name = validated_name
+
+    if 'password' in update_data:
+        user.hashed_password = get_password_hash(sanitize_input(update_data['password']))
+    
+    db.commit()
+    db.refresh(user)
+    
     return user
 
 
-@router.delete("/user/{user_id}", response_model=UserAccount, tags=["users"])
+@router.delete("/user/{user_id}", response_model=UserResponse, tags=["users"])
 async def delete_user(
     user_id: str = Path(description="ID of the user to delete"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a user by their ID (only if they share a tenant with current user)."""
-    user = find_item_by_id(user_id, user_list, "User")
-    
-    # Check if the target user shares any tenant with current user
     from ..exceptions import AuthorizationError
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
     
-    current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
-    target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
-    
-    has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
-    if not has_shared_tenant:
+    current_user_tenant_ids = {t.id for t in current_user.tenants}
+    target_user_tenant_ids = {t.id for t in user.tenants}
+
+    if not current_user_tenant_ids.intersection(target_user_tenant_ids):
         raise AuthorizationError("Access denied: User does not share any tenants with you")
     
-    user_list.remove(user)
+    db.delete(user)
+    db.commit()
+    
     return user

@@ -6,11 +6,13 @@ dependencies, and readiness for serving requests.
 """
 import time
 from datetime import datetime, timezone
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Depends
+from sqlalchemy.orm import Session
 
 from src.config import settings
-from src.database import tenant_list, user_list
-from src.model.health import HealthResponse, DetailedHealthResponse, ReadinessResponse, LivenessResponse
+from src.database import get_db
+from src.models import User, Tenant
+from ..schemas.health import HealthResponse, DetailedHealthResponse, ReadinessResponse, LivenessResponse
 
 router = APIRouter()
 
@@ -50,7 +52,7 @@ async def health_check():
     summary="Detailed health check",
     description="Comprehensive health check with application metrics and status details"
 )
-async def detailed_health_check():
+async def detailed_health_check(db: Session = Depends(get_db)):
     """
     Detailed health check endpoint.
     
@@ -60,6 +62,10 @@ async def detailed_health_check():
     current_time = time.time()
     uptime = current_time - _start_time
     
+    # Get actual database counts
+    tenant_count = db.query(Tenant).count()
+    user_count = db.query(User).count()
+    
     return DetailedHealthResponse(
         status="healthy",
         timestamp=datetime.now(timezone.utc),
@@ -67,15 +73,16 @@ async def detailed_health_check():
         environment=settings.environment,
         uptime_seconds=uptime,
         data_status={
-            "tenants_loaded": len(tenant_list),
-            "users_loaded": len(user_list),
-            "data_generation_complete": len(tenant_list) > 0 and len(user_list) > 0
+            "tenants_loaded": tenant_count,
+            "users_loaded": user_count,
+            "database_initialized": user_count > 0,  # Should have at least admin user
+            "admin_account_exists": db.query(User).filter(User.name == "admin").first() is not None
         },
         configuration_status={
-            "data_count_setting": settings.data_count,
+            "database_url": settings.database_url,
             "logging_enabled": settings.enable_detailed_logging,
-            "cors_configured": len(settings.allowed_origins) > 0,
-            "allowed_origins": settings.allowed_origins,
+            "cors_configured": len(settings.allowed_origins_list) > 0,
+            "allowed_origins": settings.allowed_origins_list,
             "environment": settings.environment
         }
     )
