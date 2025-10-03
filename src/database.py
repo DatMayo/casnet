@@ -5,7 +5,9 @@ This module initializes and populates in-memory lists of data models with dummy
 data for demonstration purposes. In a production environment, this would be replaced
 with a proper database connection.
 """
+import logging
 import random
+import time
 import uuid
 from typing import List
 
@@ -20,6 +22,13 @@ from src.model.tenant import Tenant
 from src.model.user import UserAccount
 from src.security import get_password_hash
 
+# Configure logging for database initialization
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("🚀 Starting database initialization...")
+start_time = time.time()
+
 
 tenant_list: List[Tenant] = []
 user_list: List[UserAccount] = []
@@ -29,7 +38,9 @@ calendar_list: List[Calendar] = []
 record_list: List[Record] = []
 tag_list: List[Tag] = []
 
-DATA_COUNT = 25
+# Configuration for data generation
+DATA_COUNT = 25  # Adjust this to change the amount of generated data
+ENABLE_DETAILED_LOGGING = True  # Set to False to reduce logging verbosity
 
 predefined_tenants = [
     {"name": "LSPD", "description": "Los Santos Police Department"},
@@ -97,11 +108,32 @@ predefined_tag_data = [
 ]
 
 # Generate Tenants from the predefined list
-for tenant_data in predefined_tenants:
+logger.info("📊 Generating tenants...")
+tenant_start = time.time()
+for i, tenant_data in enumerate(predefined_tenants):
     tenant_list.append(Tenant(id=str(uuid.uuid4()), **tenant_data))
+    if ENABLE_DETAILED_LOGGING and (i + 1) % 5 == 0:
+        logger.info(f"   Created {i + 1}/{len(predefined_tenants)} tenants")
+
+tenant_time = time.time() - tenant_start
+logger.info(f"✅ Generated {len(tenant_list)} tenants in {tenant_time:.2f}s")
 
 # Generate Users, Persons, and other data
+logger.info(f"📊 Generating {DATA_COUNT * 3} users and related data...")
+logger.info("   ⚠️  This may take a moment due to password hashing...")
+data_start = time.time()
+
+# Generate default password hash, so startup is faster
+DEFAULT_PASSWORD = get_password_hash("password")
+
 for i in range(DATA_COUNT * 3):
+    # Log progress every 25% or every 10 items for smaller datasets
+    if ENABLE_DETAILED_LOGGING:
+        progress_interval = max(1, (DATA_COUNT * 3) // 4)
+        if i % progress_interval == 0 or (DATA_COUNT * 3 <= 40 and i % 10 == 0):
+            elapsed = time.time() - data_start
+            progress = (i / (DATA_COUNT * 3)) * 100
+            logger.info(f"   Progress: {progress:.0f}% ({i}/{DATA_COUNT * 3}) - {elapsed:.1f}s elapsed")
     # Assign a tenant
     tenant = random.choice(tenant_list)
 
@@ -111,7 +143,7 @@ for i in range(DATA_COUNT * 3):
     user = UserAccount(
         id=str(uuid.uuid4()),
         name=f"{random.choice(predefined_first_names)} {random.choice(predefined_last_names)}",
-        hashed_password=get_password_hash("password"),
+        hashed_password=DEFAULT_PASSWORD,
         status=random.randint(0, len(EStatus) - 1),
         tenant=dummy_tenants
     )
@@ -167,3 +199,22 @@ for i in range(DATA_COUNT * 3):
         additional_processors=[random.choice(person_list) for _ in range(random.randint(0, 2)) if person_list],
         tenant=tenant
     ))
+
+# Final progress update
+data_time = time.time() - data_start
+total_time = time.time() - start_time
+
+logger.info(f"✅ Data generation completed!")
+logger.info(f"📈 Generated data in {data_time:.2f}s:")
+logger.info(f"   • {len(user_list)} users")
+logger.info(f"   • {len(person_list)} persons") 
+logger.info(f"   • {len(calendar_list)} calendar events")
+logger.info(f"   • {len(task_list)} tasks")
+logger.info(f"   • {len(record_list)} records")
+logger.info(f"   • {len(tag_list)} tags")
+
+if data_time > 5:
+    logger.warning(f"⚠️  Data generation took {data_time:.2f}s - consider reducing DATA_COUNT for faster startup")
+    logger.info(f"💡 Hint: Password hashing is the main bottleneck (needed for security)")
+
+logger.info(f"🎉 Database initialization complete! Total time: {total_time:.2f}s")
