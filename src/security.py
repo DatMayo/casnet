@@ -49,18 +49,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
     """Decode the JWT and return the current user."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    from src.exceptions import AuthenticationError, UserNotFoundError
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            raise AuthenticationError("Invalid token: missing username")
     except JWTError:
-        raise credentials_exception
+        raise AuthenticationError("Invalid or expired token")
     
     # Import here to avoid circular import
     from src.database import user_list
@@ -71,5 +68,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
             break
     
     if user is None:
-        raise credentials_exception
+        raise UserNotFoundError(username)
     return user

@@ -6,7 +6,6 @@ that are used across the application.
 """
 import datetime
 from typing import List, TypeVar, Optional
-from fastapi import HTTPException
 
 T = TypeVar('T')
 
@@ -18,34 +17,37 @@ def get_timestamp():
 
 
 def find_tenant_by_id(tenant_id: str):
-    """Find a tenant by its ID or raise a 404 error."""
+    """Find a tenant by its ID or raise a structured error."""
     from src.database import tenant_list
+    from src.exceptions import TenantNotFoundError
+    
     for tenant in tenant_list:
         if tenant.id == tenant_id:
             return tenant
-    raise HTTPException(status_code=404, detail="Tenant not found")
+    raise TenantNotFoundError(tenant_id)
 
 
 def validate_user_tenant_access(tenant_id: str, current_user):
     """Validate that the current user has access to the specified tenant."""
+    from src.exceptions import TenantAccessError
+    
     # First check if tenant exists
     tenant = find_tenant_by_id(tenant_id)
     
     # Check if user is assigned to this tenant
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     if tenant_id not in user_tenant_ids:
-        raise HTTPException(
-            status_code=403, 
-            detail="Access denied: You are not assigned to this tenant"
-        )
+        raise TenantAccessError(tenant_id, user_tenant_ids)
     
     return tenant
 
 
 def find_item_by_id(item_id: str, item_list: List[T], item_name: str, tenant_id: Optional[str] = None) -> T:
-    """Find an item in a list by its ID and optional tenant ID, or raise a 404 error."""
+    """Find an item in a list by its ID and optional tenant ID, or raise a structured error."""
+    from src.exceptions import ResourceNotFoundError
+    
     for item in item_list:
         if item.id == item_id:
             if tenant_id is None or (hasattr(item, 'tenant') and item.tenant and item.tenant.id == tenant_id):
                 return item
-    raise HTTPException(status_code=404, detail=f"{item_name} not found")
+    raise ResourceNotFoundError(item_name, item_id)

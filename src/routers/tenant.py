@@ -40,9 +40,11 @@ async def get_tenant(tenant_id: str, current_user: UserAccount = Depends(get_cur
     - **tenant_id** - The tenant ID to retrieve from the database
     """
     # Validate user has access to this tenant
+    from ..exceptions import TenantAccessError
+    
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     if tenant_id not in user_tenant_ids:
-        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
+        raise TenantAccessError(tenant_id, user_tenant_ids)
     return find_tenant_by_id(tenant_id)
 
 
@@ -83,9 +85,11 @@ async def create_tenant(tenant_name: str, tenant_description: str = None, curren
 async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int, current_user: UserAccount = Depends(get_current_user)):
     """Update an existing tenant's information (only if user is assigned to it)."""
     # Validate user has access to this tenant
+    from ..exceptions import TenantAccessError
+    
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     if tenant_id not in user_tenant_ids:
-        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
+        raise TenantAccessError(tenant_id, user_tenant_ids)
     tenant = find_tenant_by_id(tenant_id)
     tenant.name = tenant_name
     tenant.description = tenant_description
@@ -103,9 +107,11 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
 async def delete_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
     """Deletes a tenant by its ID (only if user is assigned to it)."""
     # Validate user has access to this tenant
+    from ..exceptions import TenantAccessError
+    
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     if tenant_id not in user_tenant_ids:
-        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
+        raise TenantAccessError(tenant_id, user_tenant_ids)
     tenant = find_tenant_by_id(tenant_id)
     tenant_list.remove(tenant)
     return tenant

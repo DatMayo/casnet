@@ -23,9 +23,11 @@ async def get_persons(tenant_id: str, limit: int = 100, offset: int = 0, current
 @router.post("/person/{tenant_id}", response_model=Person, tags=["persons"], status_code=201)
 async def create_person(tenant_id: str, person: Person, current_user: UserAccount = Depends(get_current_user)):
     """Create a new person."""
+    from ..exceptions import DuplicateResourceError
+    
     tenant = validate_user_tenant_access(tenant_id, current_user)
     if any(p.id == person.id for p in person_list):
-        raise HTTPException(status_code=400, detail="A person with that ID already exists")
+        raise DuplicateResourceError("Person", person.id)
 
     person.tenant = tenant
     person_list.append(person)

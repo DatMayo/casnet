@@ -31,8 +31,10 @@ async def get_users(limit: int = 100, offset: int = 0, current_user: UserAccount
 @router.post("/user", response_model=UserAccount, tags=["users"], status_code=201)
 async def create_user(user_name: str, password: str, user_tenant: List[Tenant], current_user: UserAccount = Depends(get_current_user)):
     """Create a new user account."""
+    from ..exceptions import DuplicateResourceError
+    
     if any(user.name == user_name for user in user_list):
-        raise HTTPException(status_code=400, detail="A user with that name already exists")
+        raise DuplicateResourceError("User", user_name)
 
     user = UserAccount(
         id=str(uuid.uuid4()),
@@ -50,12 +52,14 @@ async def get_user(user_id: str, current_user: UserAccount = Depends(get_current
     user = find_item_by_id(user_id, user_list, "User")
     
     # Check if the requested user shares any tenant with current user
+    from ..exceptions import AuthorizationError
+    
     current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
     
     has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
     if not has_shared_tenant:
-        raise HTTPException(status_code=403, detail="Access denied: User does not share any tenants with you")
+        raise AuthorizationError("Access denied: User does not share any tenants with you")
     
     return user
 
@@ -66,12 +70,14 @@ async def update_user(user_id: str, user_name: str, user_tenant: List[Tenant], p
     user = find_item_by_id(user_id, user_list, "User")
     
     # Check if the target user shares any tenant with current user
+    from ..exceptions import AuthorizationError
+    
     current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
     
     has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
     if not has_shared_tenant:
-        raise HTTPException(status_code=403, detail="Access denied: User does not share any tenants with you")
+        raise AuthorizationError("Access denied: User does not share any tenants with you")
     
     user.name = user_name
     user.tenant = user_tenant
@@ -87,12 +93,14 @@ async def delete_user(user_id: str, current_user: UserAccount = Depends(get_curr
     user = find_item_by_id(user_id, user_list, "User")
     
     # Check if the target user shares any tenant with current user
+    from ..exceptions import AuthorizationError
+    
     current_user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     target_user_tenant_ids = [t.id for t in user.tenant] if user.tenant else []
     
     has_shared_tenant = any(tid in current_user_tenant_ids for tid in target_user_tenant_ids)
     if not has_shared_tenant:
-        raise HTTPException(status_code=403, detail="Access denied: User does not share any tenants with you")
+        raise AuthorizationError("Access denied: User does not share any tenants with you")
     
     user_list.remove(user)
     return user
