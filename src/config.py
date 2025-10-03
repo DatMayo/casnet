@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     enable_detailed_logging: bool = Field(default=True, env="ENABLE_DETAILED_LOGGING")
     environment: str = Field(default="development", env="ENVIRONMENT")
     
+    # Documentation Settings
+    enable_docs: bool = Field(default=True, env="ENABLE_DOCS", description="Enable API documentation endpoints")
+    enable_redoc: bool = Field(default=True, env="ENABLE_REDOC", description="Enable ReDoc documentation")
+    
     # API Configuration
     api_title: str = Field(default="Casnet Backend API", env="API_TITLE")
     api_description: str = Field(
@@ -83,6 +87,20 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         """Parse the comma-separated allowed_origins string into a list."""
         return [origin.strip() for origin in self.allowed_origins.split(',') if origin.strip()]
+    
+    @property
+    def docs_enabled(self) -> bool:
+        """Check if documentation should be enabled (disabled in production unless explicitly enabled)."""
+        if self.environment.lower() == "production":
+            return self.enable_docs  # Explicitly enabled in production
+        return self.enable_docs  # Use setting value in other environments
+    
+    @property
+    def redoc_enabled(self) -> bool:
+        """Check if ReDoc documentation should be enabled (disabled in production unless explicitly enabled)."""
+        if self.environment.lower() == "production":
+            return self.enable_redoc  # Explicitly enabled in production
+        return self.enable_redoc  # Use setting value in other environments
 
 
 # Create global settings instance
