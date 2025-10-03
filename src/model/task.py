@@ -4,7 +4,6 @@ assignment within the system.
 """
 from src.model.entity import Entity
 from src.model.person import Person
-from src.model.tenant import Tenant
 
 
 class Task(Entity):
@@ -12,4 +11,3 @@ class Task(Entity):
     title: str
     created_from: Person
     created_for: Person
-    tenant: Tenant = None

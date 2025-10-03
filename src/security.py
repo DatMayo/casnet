@@ -49,8 +49,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
     """Decode the JWT and return the current user."""
-    from src.routers.auth import get_user # Break circular import
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -64,7 +62,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
     except JWTError:
         raise credentials_exception
     
-    user = get_user(username)
+    # Import here to avoid circular import
+    from src.database import user_list
+    user = None
+    for u in user_list:
+        if u.name == username:
+            user = u
+            break
+    
     if user is None:
         raise credentials_exception
     return user

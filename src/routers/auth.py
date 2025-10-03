@@ -4,7 +4,6 @@ API endpoints for authentication and token management.
 This module contains the '/token' endpoint for exchanging user credentials for a JWT.
 """
 from datetime import timedelta
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm

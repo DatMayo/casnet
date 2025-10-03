@@ -6,7 +6,7 @@ This module contains routes for creating, reading, updating, and deleting tasks.
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from ..database import task_list, Task, Person
-from ..util import get_timestamp, find_item_by_id, find_tenant_by_id, validate_user_tenant_access
+from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
 from ..security import get_current_user
 from ..model.user import UserAccount
 
