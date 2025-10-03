@@ -16,7 +16,11 @@ from .config import settings
 app = FastAPI(
     title=settings.api_title,
     description=settings.api_description,
-    version=settings.api_version
+    version=settings.api_version,
+    # Conditionally disable documentation in production
+    docs_url="/docs" if settings.docs_enabled else None,
+    redoc_url="/redoc" if settings.redoc_enabled else None,
+    openapi_url="/openapi.json" if (settings.docs_enabled or settings.redoc_enabled) else None
 )
 
 
