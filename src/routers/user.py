@@ -1,23 +1,32 @@
 """
-API endpoints for user management.
 
 This module contains routes for creating, reading, updating, and deleting user accounts.
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
-from ..database import UserAccount, user_list
-from ..model.tenant import Tenant
+from fastapi import APIRouter, HTTPException, Depends, Query
+from ..database import user_list, UserAccount, Tenant
 from ..util import get_timestamp, find_item_by_id
 from ..security import get_current_user, get_password_hash
+from ..model.pagination import PaginatedResponse, paginate_data
 
 router = APIRouter()
 
 
-@router.get("/user", response_model=List[UserAccount], tags=["users"])
-async def get_users(limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a list of users that share tenants with the current user."""
+@router.get("/user", response_model=PaginatedResponse[UserAccount], tags=["users"])
+async def get_users(
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    current_user: UserAccount = Depends(get_current_user)
+):
+    """
+    Retrieve a paginated list of users that share tenants with the current user.
+    
+    Returns only users who share at least one tenant with the requesting user,
+    with pagination metadata for building frontend pagination controls.
+    """
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    
     # Find users that share at least one tenant with current user
     shared_users = []
     for user in user_list:
@@ -25,7 +34,14 @@ async def get_users(limit: int = 100, offset: int = 0, current_user: UserAccount
             user_has_shared_tenant = any(t.id in user_tenant_ids for t in user.tenant)
             if user_has_shared_tenant:
                 shared_users.append(user)
-    return shared_users[offset:offset + limit]
+    
+    # Paginate the filtered users
+    paginated_users, pagination_meta = paginate_data(shared_users, page, page_size)
+    
+    return PaginatedResponse(
+        data=paginated_users,
+        meta=pagination_meta
+    )
 
 
 @router.post("/user", response_model=UserAccount, tags=["users"], status_code=201)

@@ -4,20 +4,41 @@ API endpoints for person management.
 This module contains routes for creating, reading, updating, and deleting persons.
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from ..database import person_list, Person
 from ..util import get_timestamp, find_item_by_id, validate_user_tenant_access
 from ..security import get_current_user
 from ..model.user import UserAccount
+from ..model.pagination import PaginatedResponse, paginate_data
 
 router = APIRouter()
 
 
-@router.get("/person/{tenant_id}", response_model=List[Person], tags=["persons"])
-async def get_persons(tenant_id: str, limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a list of persons with optional pagination."""
+@router.get("/person/{tenant_id}", response_model=PaginatedResponse[Person], tags=["persons"])
+async def get_persons(
+    tenant_id: str, 
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    current_user: UserAccount = Depends(get_current_user)
+):
+    """
+    Retrieve a paginated list of persons for a specific tenant.
+    
+    Returns paginated person data with metadata including total count,
+    page information, and navigation links.
+    """
     validate_user_tenant_access(tenant_id, current_user)
-    return [p for p in person_list if p.tenant and p.tenant.id == tenant_id][offset:offset + limit]
+    
+    # Filter persons by tenant
+    tenant_persons = [p for p in person_list if p.tenant and p.tenant.id == tenant_id]
+    
+    # Paginate the data
+    paginated_persons, pagination_meta = paginate_data(tenant_persons, page, page_size)
+    
+    return PaginatedResponse(
+        data=paginated_persons,
+        meta=pagination_meta
+    )
 
 
 @router.post("/person/{tenant_id}", response_model=Person, tags=["persons"], status_code=201)

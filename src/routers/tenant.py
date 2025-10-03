@@ -5,26 +5,43 @@ This module contains routes for creating, reading, updating, and deleting tenant
 """
 import uuid
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from ..database import Tenant, tenant_list
 from ..util import get_timestamp, find_tenant_by_id
 from ..security import get_current_user
 from ..model.user import UserAccount
+from ..model.pagination import PaginatedResponse, paginate_data
 
 router = APIRouter()
 
 
 @router.get(
     "/tenant",
-    response_model=List[Tenant],
+    response_model=PaginatedResponse[Tenant],
     tags=["tenants"],
-    summary="Lists all current existing tenants"
+    summary="Lists all tenants assigned to the current user"
 )
-async def get_tenants(limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a list of tenants the current user is assigned to."""
+async def get_tenants(
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    current_user: UserAccount = Depends(get_current_user)
+):
+    """
+    Retrieve a paginated list of tenants the current user is assigned to.
+    
+    Returns only tenants where the user has access, with pagination metadata
+    for building frontend pagination controls.
+    """
     user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
     user_tenants = [t for t in tenant_list if t.id in user_tenant_ids]
-    return user_tenants[offset:offset + limit]
+    
+    # Paginate the user's tenants
+    paginated_tenants, pagination_meta = paginate_data(user_tenants, page, page_size)
+    
+    return PaginatedResponse(
+        data=paginated_tenants,
+        meta=pagination_meta
+    )
 
 
 @router.get(
