@@ -3,6 +3,10 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.118.0-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=flat-square&logo=python)](https://python.org/)
 [![Pydantic](https://img.shields.io/badge/Pydantic-2.11+-e92063?style=flat-square)](https://pydantic.dev/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![GitHub issues](https://img.shields.io/github/issues/DatMayo/casnet-backend?style=flat-square)](https://github.com/DatMayo/casnet-backend/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/DatMayo/casnet-backend?style=flat-square)](https://github.com/DatMayo/casnet-backend/commits/main)
 
 > **Enterprise-Grade Multi-Tenant Backend API** - Production-ready with comprehensive security, monitoring, and developer experience features.
 
@@ -49,6 +53,35 @@ casnet-backend/
 ├── requirements.txt        # Python dependencies
 └── README.md               # Project documentation
 ```
+
+## 📚 Documentation
+
+### 🌟 **Comprehensive Wiki Available**
+For detailed guides, tutorials, and in-depth documentation, visit our **[GitHub Wiki](https://github.com/DatMayo/casnet-backend/wiki)**:
+
+- **📖 [Getting Started Guide](https://github.com/DatMayo/casnet-backend/wiki/Home)** - Project overview and quick start
+- **🐳 [Docker Quickstart](https://github.com/DatMayo/casnet-backend/wiki/Docker-Quickstart)** - Fast Docker setup guide
+- **🛠️ [Local Development Setup](https://github.com/DatMayo/casnet-backend/wiki/Local-Development-Setup)** - Python development environment
+- **🏗️ [Multi-Tenant Architecture](https://github.com/DatMayo/casnet-backend/wiki/Multi-Tenant-Architecture)** - System design and data isolation
+- **🗄️ [Database Schema](https://github.com/DatMayo/casnet-backend/wiki/Database-Schema)** - SQLAlchemy models and relationships
+- **🚀 [Deployment Guide](https://github.com/DatMayo/casnet-backend/wiki/Deployment-Guide)** - Production deployment strategies
+- **🔒 [Authentication Flow](https://github.com/DatMayo/casnet-backend/wiki/Authentication-Flow)** - JWT security implementation
+
+> 💡 **Tip**: The wiki is constantly updated with new examples, troubleshooting guides, and advanced use cases.
+
+### 📖 API Documentation
+**Interactive Docs** (when running):
+- **Swagger UI**: [`http://localhost:8000/docs`](http://localhost:8000/docs) 
+- **ReDoc**: [`http://localhost:8000/redoc`](http://localhost:8000/redoc)
+- **Health Check**: [`http://localhost:8000/health`](http://localhost:8000/health)
+
+**Detailed Guides** (GitHub Wiki):
+- **🔐 [Authentication](https://github.com/DatMayo/casnet-backend/wiki/API-Authentication)** - JWT tokens and security
+- **👥 [Users API](https://github.com/DatMayo/casnet-backend/wiki/API-Users)** - User management endpoints
+- **🏢 [Tenants API](https://github.com/DatMayo/casnet-backend/wiki/API-Tenants)** - Multi-tenant organization
+- **👤 [Persons API](https://github.com/DatMayo/casnet-backend/wiki/API-Persons)** - Individual profiles
+- **📋 [Tasks & Calendar API](https://github.com/DatMayo/casnet-backend/wiki/API-Tasks-and-Calendar)** - Task and event management
+- **📄 [Records & Tags API](https://github.com/DatMayo/casnet-backend/wiki/API-Records-and-Tags)** - Document and categorization
 
 ## 🔗 API Endpoints
 
@@ -371,11 +404,16 @@ docker-compose restart casnet-api       # Restart API container
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please follow these steps:
+
+1. **Read the Documentation**: Check our **[Local Development Setup](https://github.com/DatMayo/casnet-backend/wiki/Local-Development-Setup)** and **[Contributing Guide](https://github.com/DatMayo/casnet-backend/wiki/Contributing-to-the-Wiki)** in the wiki
+2. Fork the repository
+3. Create a feature branch (`git checkout -b feature/amazing-feature`)
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+For detailed contribution guidelines, coding standards, and development setup, visit our **[GitHub Wiki](https://github.com/DatMayo/casnet-backend/wiki)**.
 
 ## 📄 License
 
