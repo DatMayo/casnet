@@ -21,8 +21,10 @@ router = APIRouter()
     summary="Lists all current existing tenants"
 )
 async def get_tenants(limit: int = 100, offset: int = 0, current_user: UserAccount = Depends(get_current_user)):
-    """Retrieve a list of tenants with optional pagination."""
-    return tenant_list[offset:offset + limit]
+    """Retrieve a list of tenants the current user is assigned to."""
+    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    user_tenants = [t for t in tenant_list if t.id in user_tenant_ids]
+    return user_tenants[offset:offset + limit]
 
 
 @router.get(
@@ -33,10 +35,14 @@ async def get_tenants(limit: int = 100, offset: int = 0, current_user: UserAccou
 )
 async def get_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
     """
-    Retrieve a single tenant by its ID.
+    Retrieve a single tenant by its ID (only if user is assigned to it).
 
     - **tenant_id** - The tenant ID to retrieve from the database
     """
+    # Validate user has access to this tenant
+    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    if tenant_id not in user_tenant_ids:
+        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
     return find_tenant_by_id(tenant_id)
 
 
@@ -75,7 +81,11 @@ async def create_tenant(tenant_name: str, tenant_description: str = None, curren
     response_description="The updated tenant object"
 )
 async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: str, tenant_status: int, current_user: UserAccount = Depends(get_current_user)):
-    """Update an existing tenant's information."""
+    """Update an existing tenant's information (only if user is assigned to it)."""
+    # Validate user has access to this tenant
+    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    if tenant_id not in user_tenant_ids:
+        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
     tenant = find_tenant_by_id(tenant_id)
     tenant.name = tenant_name
     tenant.description = tenant_description
@@ -91,7 +101,11 @@ async def update_tenant(tenant_id: str, tenant_name: str, tenant_description: st
     summary="Deletes a tenant by its ID"
 )
 async def delete_tenant(tenant_id: str, current_user: UserAccount = Depends(get_current_user)):
-    """Deletes a tenant by its ID and returns the deleted object."""
+    """Deletes a tenant by its ID (only if user is assigned to it)."""
+    # Validate user has access to this tenant
+    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
+    if tenant_id not in user_tenant_ids:
+        raise HTTPException(status_code=403, detail="Access denied: You are not assigned to this tenant")
     tenant = find_tenant_by_id(tenant_id)
     tenant_list.remove(tenant)
     return tenant
