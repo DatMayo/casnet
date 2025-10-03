@@ -81,7 +81,7 @@ Full CRUD operations with pagination are available for all core resources. For a
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/DatMayo/casnet-backend.git
 cd casnet-backend
 
 # Start the FastAPI development server
@@ -104,7 +104,7 @@ docker-compose logs -f casnet-api
 
 1. **Clone & Setup Virtual Environment**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/DatMayo/casnet-backend.git
    cd casnet-backend
    python3 -m venv venv
    source venv/bin/activate
@@ -287,7 +287,7 @@ For a more robust production environment, you can switch to PostgreSQL:
 **🚀 Recommended: Start with Docker (Easiest) - ✅ Verified Working**
 ```bash
 # Clone and start the development environment
-git clone <repository-url>
+git clone https://github.com/DatMayo/casnet-backend.git
 cd casnet-backend
 
 # Start the FastAPI container (API only)
