@@ -10,82 +10,65 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
+from typing import Optional
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+class Settings:
     """Application settings with environment variable support."""
     
-    # Security Settings
-    secret_key: str = Field(
-        default="a_very_secret_key_that_should_be_in_an_env_file_change_this_in_production",
-        env="SECRET_KEY",
-        description="Secret key for JWT token signing"
-    )
-    algorithm: str = Field(default="HS256", env="ALGORITHM")
-    access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
-    
-    # Development Settings
-    data_count: int = Field(default=10, env="DATA_COUNT", description="Number of dummy records to generate")
-    enable_detailed_logging: bool = Field(default=True, env="ENABLE_DETAILED_LOGGING")
-    environment: str = Field(default="development", env="ENVIRONMENT")
-    
-    # API Configuration
-    api_title: str = Field(default="Casnet Backend API", env="API_TITLE")
-    api_description: str = Field(
-        default="A multi-tenant backend API with structured error handling", 
-        env="API_DESCRIPTION"
-    )
-    api_version: str = Field(default="1.0.0", env="API_VERSION")
-    api_prefix: str = Field(default="/api/v1", env="API_PREFIX")
-    
-    # CORS Settings
-    allowed_origins: List[str] = Field(
-        default=[
-            "http://localhost:3000",   # React development server
-            "http://127.0.0.1:3000", 
-            "http://localhost:5173",   # Vite development server
-            "http://127.0.0.1:5173",
-            "http://localhost:8080",   # Vue CLI development server
-            "http://127.0.0.1:8080",
-            "http://localhost:4200",   # Angular development server
-            "http://127.0.0.1:4200"
-        ],
-        env="ALLOWED_ORIGINS",
-        description="Allowed CORS origins for frontend applications"
-    )
-    
-    # Security & Limits
-    max_request_size: int = Field(
-        default=16777216,  # 16MB in bytes
-        env="MAX_REQUEST_SIZE",
-        description="Maximum request size in bytes (default: 16MB)"
-    )
-    max_string_length: int = Field(
-        default=1000,
-        env="MAX_STRING_LENGTH", 
-        description="Maximum length for string fields"
-    )
-    max_description_length: int = Field(
-        default=5000,
-        env="MAX_DESCRIPTION_LENGTH",
-        description="Maximum length for description fields"
-    )
-    
-    # Database Settings (for future use)
-    database_url: str = Field(
-        default="sqlite:///./casnet.db", 
-        env="DATABASE_URL",
-        description="Database connection URL"
-    )
-    
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        # Parse comma-separated strings as lists
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str) -> any:
-            if field_name == 'allowed_origins':
-                return [origin.strip() for origin in raw_val.split(',')]
-            return cls.json_loads(raw_val)
+    def __init__(self):
+        # Security Settings
+        self.secret_key: str = os.getenv(
+            "SECRET_KEY",
+            "a_very_secret_key_that_should_be_in_an_env_file_change_this_in_production"
+        )
+        self.algorithm: str = os.getenv("ALGORITHM", "HS256")
+        self.access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+        
+        # Development Settings
+        self.data_count: int = int(os.getenv("DATA_COUNT", "10"))
+        self.enable_detailed_logging: bool = os.getenv("ENABLE_DETAILED_LOGGING", "true").lower() == "true"
+        self.environment: str = os.getenv("ENVIRONMENT", "development")
+        
+        # API Configuration
+        self.api_title: str = os.getenv("API_TITLE", "Casnet Backend API")
+        self.api_description: str = os.getenv(
+            "API_DESCRIPTION",
+            "A multi-tenant backend API with structured error handling"
+        )
+        self.api_version: str = os.getenv("API_VERSION", "1.0.0")
+        self.api_prefix: str = os.getenv("API_PREFIX", "/api/v1")
+        
+        # CORS Settings - Handle both string and list formats
+        allowed_origins = os.getenv("ALLOWED_ORIGINS")
+        if allowed_origins:
+            if isinstance(allowed_origins, str):
+                self.allowed_origins = [origin.strip() for origin in allowed_origins.split(",")]
+            else:
+                self.allowed_origins = allowed_origins
+        else:
+            self.allowed_origins = [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:8080",
+                "http://127.0.0.1:8080",
+                "http://localhost:4200",
+                "http://127.0.0.1:4200"
+            ]
+        
+        # Security & Limits
+        self.max_request_size: int = int(os.getenv("MAX_REQUEST_SIZE", "16777216"))  # 16MB
+        self.max_string_length: int = int(os.getenv("MAX_STRING_LENGTH", "1000"))
+        self.max_description_length: int = int(os.getenv("MAX_DESCRIPTION_LENGTH", "5000"))
+        
+        # Database Settings
+        self.database_url: str = os.getenv("DATABASE_URL", "sqlite:///./casnet.db")
 
 
 # Create global settings instance
