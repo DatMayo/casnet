@@ -6,14 +6,15 @@ the API routers for all the application's endpoints.
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-from .routers import tenant, user, person, task, calendar, record, tag, auth
+from .routers import tenant, user, person, task, calendar, record, tag, auth, health
 from .exceptions import BaseAPIException
 from .model.error import BaseErrorResponse
+from .config import settings
 
 app = FastAPI(
-    title="Casnet Backend API",
-    description="A multi-tenant backend API with structured error handling",
-    version="1.0.0"
+    title=settings.api_title,
+    description=settings.api_description,
+    version=settings.api_version
 )
 
 
@@ -55,6 +56,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
+app.include_router(health.router)  # Health checks (no auth required)
 app.include_router(auth.router)
 app.include_router(tenant.router)
 app.include_router(user.router)

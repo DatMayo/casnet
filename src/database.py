@@ -122,7 +122,7 @@ tenant_time = time.time() - tenant_start
 logger.info(f"✅ Generated {len(tenant_list)} tenants in {tenant_time:.2f}s")
 
 # Generate Users, Persons, and other data
-logger.info(f"📊 Generating {DATA_COUNT * 3} users and related data...")
+logger.info(f"📊 Generating {DATA_COUNT} users and related data...")
 logger.info("   ⚠️  This may take a moment due to password hashing...")
 data_start = time.time()
 
@@ -132,11 +132,11 @@ DEFAULT_PASSWORD = get_password_hash("password")
 for i in range(DATA_COUNT):
     # Log progress every 25% or every 10 items for smaller datasets
     if ENABLE_DETAILED_LOGGING:
-        progress_interval = max(1, (DATA_COUNT * 3) // 4)
-        if i % progress_interval == 0 or (DATA_COUNT * 3 <= 40 and i % 10 == 0):
+        progress_interval = max(1, DATA_COUNT // 4)
+        if i % progress_interval == 0 or (DATA_COUNT <= 40 and i % 10 == 0):
             elapsed = time.time() - data_start
-            progress = (i / (DATA_COUNT * 3)) * 100
-            logger.info(f"   Progress: {progress:.0f}% ({i}/{DATA_COUNT * 3}) - {elapsed:.1f}s elapsed")
+            progress = (i / DATA_COUNT) * 100
+            logger.info(f"   Progress: {progress:.0f}% ({i}/{DATA_COUNT}) - {elapsed:.1f}s elapsed")
     # Assign a tenant
     tenant = random.choice(tenant_list)
 
