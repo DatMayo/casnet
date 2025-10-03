@@ -19,7 +19,7 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 - 💾 **Persistent Database** - Uses SQLite by default for reliable data storage.
 - 🚀 **SQLAlchemy 2.0** - Modern, fully-typed data models and queries.
 - 🐳 **Docker Ready** - Includes `Dockerfile` and `docker-compose.yml` for easy containerization.
-- ⚡ **High Performance** - Optimized startup and request validation.
+- ⚡ **High Performance** - Asynchronous and built for speed.
 - 🌐 **CORS Ready** - Configured for all major frontend frameworks.
 - 🎯 **Developer Experience** - Structured errors, comprehensive logging, hot reload.
 
@@ -53,31 +53,16 @@ casnet-backend/
 ## 🔗 API Endpoints
 
 ### Core Resources
-All endpoints feature **pagination**, **comprehensive validation**, and **multi-tenant security**.
+Full CRUD operations with pagination are available for all core resources. For a complete list of endpoints, parameters, and request/response examples, please see the **[Interactive API Documentation](#-api-documentation)**.
 
-#### 👥 **Users & Authentication**
-- `POST /token` - JWT authentication
-- `POST /user` - Create a new user account
-- `GET /user` - List users who share a tenant
-- `GET /user/{user_id}` - Get a specific user's details
-- `PUT /user/{user_id}` - Update a user
-- `DELETE /user/{user_id}` - Delete a user
-
-#### 🏢 **Tenant Management**  
-- `GET /tenant` - List tenants assigned to the current user
-- `POST /tenant` - Create a new tenant
-- `GET /tenant/{tenant_id}` - Get a specific tenant's details
-- `PUT /tenant/{tenant_id}` - Update a tenant
-- `DELETE /tenant/{tenant_id}` - Delete a tenant
-
-#### 👤 **Person Profiles, Tasks, Records, & More**
-Full CRUD operations are available for all core resources, including:
+- **Authentication**: `POST /token`
+- **Users**: `/user`
+- **Tenants**: `/tenant`
 - **Persons**: `/person/{tenant_id}`
 - **Tasks**: `/task/{tenant_id}`
 - **Calendar Events**: `/calendar/{tenant_id}`
 - **Records**: `/record/{tenant_id}`
 - **Tags**: `/tag/{tenant_id}`
-- Full CRUD operations for both resources
 
 ### 🏥 Health & Monitoring
 - `GET /health` - Basic health check
@@ -275,14 +260,6 @@ Use the interactive documentation at `/docs` to test endpoints directly in your 
 2.  **Schema**: Define Pydantic validation schemas in `src/schemas/`.
 3.  **Router**: Add a new router file with CRUD endpoints in `src/routers/`.
 4.  **Main**: Include the new router in `src/main.py`.
-
-## 📈 Performance
-
-### Optimizations Applied
-- **79x faster startup** (0.3s vs 23s) through optimized data generation  
-- **Request size limiting** prevents resource exhaustion
-- **Efficient pagination** with metadata caching
-- **Input validation** with early rejection of invalid requests
 
 ## ⚙️ Database
 
