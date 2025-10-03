@@ -11,8 +11,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
 
-from src.model.user import UserAccount
+from src.models import User
+from src.database import get_db
 
 # --- Configuration ---
 from src.config import settings
@@ -48,7 +50,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
     """Decode the JWT and return the current user."""
     from src.exceptions import AuthenticationError, UserNotFoundError
     
@@ -60,13 +65,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserAccount:
     except JWTError:
         raise AuthenticationError("Invalid or expired token")
     
-    # Import here to avoid circular import
-    from src.database import user_list
-    user = None
-    for u in user_list:
-        if u.name == username:
-            user = u
-            break
+    # Query user from database
+    user = db.query(User).filter(User.name == username).first()
     
     if user is None:
         raise UserNotFoundError(username)

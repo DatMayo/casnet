@@ -16,6 +16,8 @@ services:
     volumes:
       # Mount source code for hot reload in development
       - ./src:/app/src
+      # Persist SQLite database
+      - sqlite_data:/app/data
     restart: unless-stopped
     networks:
       - casnet-network
@@ -26,52 +28,9 @@ services:
       retries: 3
       start_period: 40s
 
-  # PostgreSQL Database (for future use)
-  postgres:
-    image: postgres:15-alpine
-    container_name: casnet-postgres-dev
-    environment:
-      - POSTGRES_DB=casnet
-      - POSTGRES_USER=casnet_user
-      - POSTGRES_PASSWORD=casnet_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - casnet-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U casnet_user -d casnet"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles:
-      - full-stack  # Only start when explicitly requested
-
-  # Redis (for future caching and rate limiting)
-  redis:
-    image: redis:7-alpine
-    container_name: casnet-redis-dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data_dev:/data
-    restart: unless-stopped
-    networks:
-      - casnet-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles:
-      - full-stack  # Only start when explicitly requested
-
 volumes:
-  postgres_data_dev:
-    driver: local
-  redis_data_dev:
+  # SQLite database persistence
+  sqlite_data:
     driver: local
 
 networks:

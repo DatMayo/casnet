@@ -6,10 +6,12 @@ This module contains routes for creating, reading, updating, and deleting tenant
 import uuid
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from ..database import Tenant, tenant_list
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import Tenant, User
 from ..util import get_timestamp, find_tenant_by_id
 from ..security import get_current_user
-from ..model.user import UserAccount
 from ..model.pagination import PaginatedResponse, paginate_data
 
 router = APIRouter()
@@ -17,14 +19,15 @@ router = APIRouter()
 
 @router.get(
     "/tenant",
-    response_model=PaginatedResponse[Tenant],
+    response_model=PaginatedResponse[dict],
     tags=["tenants"],
     summary="Lists all tenants assigned to the current user"
 )
 async def get_tenants(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
-    current_user: UserAccount = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Retrieve a paginated list of tenants the current user is assigned to.
@@ -32,14 +35,44 @@ async def get_tenants(
     Returns only tenants where the user has access, with pagination metadata
     for building frontend pagination controls.
     """
-    user_tenant_ids = [t.id for t in current_user.tenant] if current_user.tenant else []
-    user_tenants = [t for t in tenant_list if t.id in user_tenant_ids]
+    # Get user's tenants using SQLAlchemy relationship
+    user_tenants_query = db.query(Tenant).join(Tenant.users).filter(User.id == current_user.id)
     
-    # Paginate the user's tenants
-    paginated_tenants, pagination_meta = paginate_data(user_tenants, page, page_size)
+    # Get total count for pagination
+    total_count = user_tenants_query.count()
+    
+    # Apply pagination
+    offset = (page - 1) * page_size
+    tenants = user_tenants_query.offset(offset).limit(page_size).all()
+    
+    # Convert to dict format for response
+    tenant_data = []
+    for tenant in tenants:
+        tenant_dict = {
+            "id": tenant.id,
+            "name": tenant.name,
+            "description": tenant.description,
+            "status": tenant.status,
+            "created_at": tenant.created_at.isoformat(),
+            "updated_at": tenant.updated_at.isoformat()
+        }
+        tenant_data.append(tenant_dict)
+    
+    # Calculate pagination metadata
+    total_pages = (total_count + page_size - 1) // page_size
+    pagination_meta = {
+        "total_items": total_count,
+        "total_pages": total_pages,
+        "current_page": page,
+        "page_size": page_size,
+        "has_next": page < total_pages,
+        "has_previous": page > 1,
+        "next_page": page + 1 if page < total_pages else None,
+        "previous_page": page - 1 if page > 1 else None
+    }
     
     return PaginatedResponse(
-        data=paginated_tenants,
+        data=tenant_data,
         meta=pagination_meta
     )
 
