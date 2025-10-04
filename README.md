@@ -15,17 +15,17 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 
 ## ✨ Key Features
 
-- 🏢 **Multi-Tenant Architecture** - Complete data isolation between departments
-- 🛡️ **Enterprise Security** - JWT authentication, input validation, request limiting  
-- 📊 **Rich API Documentation** - Auto-generated with comprehensive parameter descriptions
-- 🔄 **Pagination Support** - Frontend-ready with metadata for UI components
+- 🏢 **Multi-Tenant Architecture** - Complete data isolation between departments with smart defaults
+- 🛡️ **Enterprise Security** - Complete JWT auth lifecycle (login/logout/refresh) with automatic tenant filtering
+- 📊 **Modern RESTful API** - Clean plural endpoints (`/users`, `/persons`) with consistent patterns
+- 🔄 **Enhanced UX** - Simplified URLs, automatic tenant access, no complex tenant_id parameters
 - 🏥 **Health Monitoring** - Kubernetes-compatible readiness/liveness probes
-- 💾 **Persistent Database** - Uses SQLite by default for reliable data storage.
-- 🚀 **SQLAlchemy 2.0** - Modern, fully-typed data models and queries.
-- 🐳 **Docker Ready** - Includes `Dockerfile` and `docker-compose.yml` for easy containerization.
-- ⚡ **High Performance** - Asynchronous and built for speed.
-- 🌐 **CORS Ready** - Configured for all major frontend frameworks.
-- 🎯 **Developer Experience** - Structured errors, comprehensive logging, hot reload.
+- 💾 **Persistent Database** - Uses SQLite by default, production-safe initialization
+- 🚀 **SQLAlchemy 2.0** - Modern, fully-typed data models and queries
+- 🐳 **Docker Ready** - Includes `Dockerfile` and `docker-compose.yml` for easy containerization
+- ⚡ **High Performance** - Asynchronous and built for speed
+- 🌐 **CORS Ready** - Configured for all major frontend frameworks
+- 🎯 **Developer Experience** - Auto-generated docs, structured errors, hot reload, immediate testing
 
 ## 🏗️ Project Structure
 
@@ -85,17 +85,60 @@ For detailed guides, tutorials, and in-depth documentation, visit our **[GitHub 
 
 ## 🔗 API Endpoints
 
-### Core Resources
-Full CRUD operations with pagination are available for all core resources. For a complete list of endpoints, parameters, and request/response examples, please see the **[Interactive API Documentation](#-api-documentation)**.
+### 🔐 Authentication
+- `POST /auth/login` - User authentication and token generation
+- `POST /auth/logout` - User logout (client-side cleanup)
+- `POST /auth/refresh` - Token refresh to extend session
+- `GET /auth/me` - Get current user profile and accessible tenants
 
-- **Authentication**: `POST /token`
-- **Users**: `/user`
-- **Tenants**: `/tenant`
-- **Persons**: `/person/{tenant_id}`
-- **Tasks**: `/task/{tenant_id}`
-- **Calendar Events**: `/calendar/{tenant_id}`
-- **Records**: `/record/{tenant_id}`
-- **Tags**: `/tag/{tenant_id}`
+### 🏢 Core Resources
+Full CRUD operations with pagination are available for all core resources. All endpoints automatically filter data based on the user's accessible tenants for enhanced security and simplified access.
+
+#### **RESTful Endpoint Structure**
+```
+GET    /users          # List all users (paginated)
+POST   /users          # Create new user
+GET    /users/{id}     # Get specific user
+PUT    /users/{id}     # Update user
+DELETE /users/{id}     # Delete user
+
+GET    /tenants        # List user's tenants
+POST   /tenants        # Create new tenant  
+GET    /tenants/{id}   # Get specific tenant
+PUT    /tenants/{id}   # Update tenant
+DELETE /tenants/{id}   # Delete tenant
+
+GET    /persons        # List all accessible persons (from all user's tenants)
+POST   /persons?tenant_id=xyz  # Create person in specific tenant
+GET    /persons/{id}   # Get specific person (auto-searches user's tenants)
+PUT    /persons/{id}   # Update person
+DELETE /persons/{id}   # Delete person
+
+GET    /tasks          # List all accessible tasks
+POST   /tasks?tenant_id=xyz    # Create task in specific tenant
+GET    /tasks/{id}     # Get specific task
+PUT    /tasks/{id}     # Update task
+DELETE /tasks/{id}     # Delete task
+
+GET    /records        # List all accessible records
+POST   /records?tenant_id=xyz  # Create record in specific tenant
+GET    /records/{id}   # Get specific record
+PUT    /records/{id}   # Update record
+DELETE /records/{id}   # Delete record
+
+GET    /tags           # List all accessible tags
+POST   /tags?tenant_id=xyz     # Create tag in specific tenant
+GET    /tags/{id}      # Get specific tag
+PUT    /tags/{id}      # Update tag
+DELETE /tags/{id}      # Delete tag
+```
+
+#### **Key Improvements**
+- ✅ **Consistent plural naming** - All resources use plural forms (`/users`, `/persons`, etc.)
+- ✅ **Simplified URLs** - No more complex `/{tenant_id}/{resource_id}` paths
+- ✅ **Automatic tenant filtering** - Users only see data from their accessible tenants
+- ✅ **RESTful design** - Follows modern API design patterns
+- ✅ **Enhanced security** - Tenant access automatically validated
 
 ### 🏥 Health & Monitoring
 - `GET /health` - Basic health check
@@ -165,14 +208,23 @@ SECRET_KEY=your_super_secret_key_here
 ALGORITHM=HS256  
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
+# Database Configuration
+DATABASE_URL=sqlite:///./data/casnet.db
+DATABASE_ECHO=false
+
 # Development Settings
 DATA_COUNT=10
 ENABLE_DETAILED_LOGGING=true
 ENVIRONMENT=development
 
+# Documentation Settings (set to false in production for security)
+ENABLE_DOCS=true
+ENABLE_REDOC=true
+
 # API Configuration
 API_TITLE=Casnet Backend API
 API_VERSION=1.0.0
+API_PREFIX=/api/v1
 
 # CORS Settings (for frontend development)
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
@@ -199,11 +251,15 @@ MAX_DESCRIPTION_LENGTH=5000
 - **Complete data isolation** between tenants
 - **Tenant-scoped API access** - users can only access data from their assigned tenants
 - **Automatic tenant validation** on all endpoints
+- **Smart defaults** - automatically creates default admin user and "Default Organization" tenant on first run
+- **Production-safe** - only creates defaults when database is completely empty
 
 ### Authentication & Authorization  
-- **JWT-based authentication** with configurable expiration
-- **Password hashing** using bcrypt
+- **JWT-based authentication** with configurable expiration and refresh tokens
+- **Password hashing** using bcrypt with secure salt rounds
 - **Role-based access control** within tenant boundaries
+- **Complete auth lifecycle** - login, logout, token refresh, and profile access
+- **Automatic tenant validation** - users can only access their assigned tenant data
 
 ### Input Validation & Security
 - **Request size limiting** - prevents DoS attacks via large payloads
@@ -288,11 +344,27 @@ The development server supports hot reload - changes to source files automatical
 ### API Testing
 Use the interactive documentation at `/docs` to test endpoints directly in your browser.
 
+### Quick Start Testing
+After starting the server, you can immediately test the API:
+
+1. **Get Auth Token**: POST to `/auth/login` with `admin/changeme`
+2. **Test Profile**: GET `/auth/me` to see your user profile and accessible tenants
+3. **List Resources**: GET `/persons`, `/tasks`, etc. (will be empty initially)
+4. **Create Data**: POST to any resource endpoint with `tenant_id` as query parameter
+
+### Enhanced Developer Experience
+- **Automatic defaults** - No setup required, default admin and tenant created automatically
+- **RESTful URLs** - Clean, predictable endpoint structure
+- **Comprehensive errors** - Detailed validation feedback and clear error messages
+- **No tenant complexity** - Just use resource IDs, tenant filtering is automatic
+- **Modern patterns** - Follows REST conventions with proper HTTP methods and status codes
+
 ### Adding New Endpoints
 1.  **Model**: Create or update a SQLAlchemy model in `src/models/`.
 2.  **Schema**: Define Pydantic validation schemas in `src/schemas/`.
 3.  **Router**: Add a new router file with CRUD endpoints in `src/routers/`.
 4.  **Main**: Include the new router in `src/main.py`.
+5.  **Follow patterns**: Use plural resource names and implement tenant filtering like existing routers.
 
 ## ⚙️ Database
 
