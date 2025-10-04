@@ -124,8 +124,8 @@ async def create_tenant(
     summary="Update an existing tenant's information",
 )
 async def update_tenant(
+    tenant_data: TenantUpdate,
     tenant_id: str = Path(description="ID of the tenant to update"),
-    tenant_data: TenantUpdate = Depends(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -150,7 +150,7 @@ async def update_tenant(
         tenant.description = sanitize_input(tenant_data.description)
         
     if tenant_data.status is not None:
-        tenant.status = tenant_data.status
+        tenant.status = tenant_data.status.value  # Convert enum to integer
 
     db.commit()
     db.refresh(tenant)
