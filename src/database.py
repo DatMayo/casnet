@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.config import settings
-from src.models import Base, User
+from src.models import Base, User, Tenant
 from src.hashing import get_password_hash
 
 # Configure logging for database initialization
@@ -88,17 +88,55 @@ def create_default_admin_account(db: Session) -> User:
     return admin
 
 
+def create_default_tenant_and_assignment(db: Session) -> Tenant:
+    """
+    Create a default tenant and assign the admin user to it.
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        Tenant: The default tenant
+    """
+    # Check if default tenant already exists
+    default_tenant = db.query(Tenant).filter(Tenant.name == "Default Organization").first()
+    if default_tenant:
+        logger.info("🏢 Default tenant already exists")
+        return default_tenant
+    
+    # Create default tenant
+    default_tenant = Tenant(
+        name="Default Organization",
+        description="Default tenant for initial system setup and administration",
+        status=1  # Active
+    )
+    db.add(default_tenant)
+    db.commit()
+    db.refresh(default_tenant)
+    
+    # Assign admin user to default tenant
+    admin_user = db.query(User).filter(User.name == "admin").first()
+    if admin_user and admin_user not in default_tenant.users:
+        default_tenant.users.append(admin_user)
+        db.commit()
+        logger.info("👤 Admin user assigned to default tenant")
+    
+    logger.info("🏢 Default tenant created and admin assigned")
+    return default_tenant
+
+
 def initialize_database():
     """
-    Initialize the database by creating tables and default admin account.
+    Initialize the database by creating tables, default admin account, and default tenant.
     This function is called on application startup.
     """
     # Create tables
     create_tables()
     
-    # Create default admin account
+    # Create default admin account and tenant
     with SessionLocal() as db:
         create_default_admin_account(db)
+        create_default_tenant_and_assignment(db)
     
     # Log completion
     total_time = time.time() - start_time
