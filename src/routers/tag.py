@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Tag, User
 from ..security import get_current_user
+from ..dependencies import requires_permission
+from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.tag import TagCreate, TagUpdate, TagResponse
 
@@ -19,8 +21,9 @@ router = APIRouter()
 async def get_tags(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter tags by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_TAGS))
 ):
     """Retrieve all tags accessible to the current user with pagination."""
     # Get all tenant IDs the user has access to
@@ -56,7 +59,7 @@ async def create_tag(
     tag_data: TagCreate,
     tenant_id: str = Query(description="ID of the tenant to create the tag in"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.CREATE_TAGS))
 ):
     """Create a new tag within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -78,7 +81,7 @@ async def create_tag(
 async def get_tag(
     tag_id: str = Path(description="ID of the tag to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_TAGS, tenant_from="auto"))
 ):
     """Retrieve a single tag by its ID."""
     # Get all tenant IDs the user has access to
@@ -100,7 +103,7 @@ async def update_tag(
     tag_data: TagUpdate,
     tag_id: str = Path(description="ID of the tag to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.EDIT_TAGS, tenant_from="auto"))
 ):
     """Update a tag's details."""
     # Get all tenant IDs the user has access to
@@ -128,7 +131,7 @@ async def update_tag(
 async def delete_tag(
     tag_id: str = Path(description="ID of the tag to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.DELETE_TAGS, tenant_from="auto"))
 ):
     """Delete a tag by its ID."""
     # Get all tenant IDs the user has access to

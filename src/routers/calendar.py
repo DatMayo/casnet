@@ -10,21 +10,21 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Calendar, User
 from ..security import get_current_user
+from ..dependencies import requires_permission
+from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.calendar import CalendarCreate, CalendarUpdate, CalendarResponse
 
 router = APIRouter()
-
-
 @router.get("/calendar/{tenant_id}", response_model=PaginatedResponse[CalendarResponse], tags=["calendar"])
 async def get_calendar_events(
     tenant_id: str = Path(description="ID of the tenant to retrieve calendar events from"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
-    page_size: int = Query(default=20, ge=1, le=100, description="Number of events per page"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_CALENDAR, tenant_from="path"))
 ):
-    """Retrieve a paginated list of calendar events for a specific tenant."""
+    """Retrieve calendar events from a specific tenant with pagination."""
     from ..exceptions import TenantAccessError
     user_tenant_ids = {t.id for t in current_user.tenants}
     if tenant_id not in user_tenant_ids:
@@ -58,7 +58,7 @@ async def create_calendar_event(
     calendar_data: CalendarCreate,
     tenant_id: str = Path(description="ID of the tenant to create the event in"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.CREATE_CALENDAR, tenant_from="path"))
 ):
     """Create a new calendar event within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -81,7 +81,7 @@ async def get_calendar_event(
     tenant_id: str = Path(description="ID of the tenant that owns the event"),
     event_id: str = Path(description="ID of the event to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_CALENDAR, tenant_from="path"))
 ):
     """Retrieve a single calendar event by its ID."""
     from ..exceptions import TenantAccessError
@@ -101,7 +101,7 @@ async def update_calendar_event(
     tenant_id: str = Path(description="ID of the tenant that owns the event"),
     event_id: str = Path(description="ID of the event to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.EDIT_CALENDAR, tenant_from="path"))
 ):
     """Update a calendar event's details."""
     from ..exceptions import TenantAccessError
@@ -127,7 +127,7 @@ async def delete_calendar_event(
     tenant_id: str = Path(description="ID of the tenant that owns the event"),
     event_id: str = Path(description="ID of the event to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.DELETE_CALENDAR, tenant_from="path"))
 ):
     """Delete a calendar event by its ID."""
     from ..exceptions import TenantAccessError

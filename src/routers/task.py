@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Task, User
 from ..security import get_current_user
+from ..dependencies import requires_permission
+from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.task import TaskCreate, TaskUpdate, TaskResponse
 
@@ -20,8 +22,9 @@ router = APIRouter()
 async def get_tasks(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter tasks by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_TASKS))
 ):
     """Retrieve all tasks accessible to the current user with pagination."""
     # Get all tenant IDs the user has access to
@@ -57,7 +60,7 @@ async def create_task(
     task_data: TaskCreate,
     tenant_id: str = Query(description="ID of the tenant to create the task in"), 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.CREATE_TASKS))
 ):
     """Create a new task within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -79,7 +82,7 @@ async def create_task(
 async def get_task(
     task_id: str = Path(description="ID of the task to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_TASKS, tenant_from="auto"))
 ):
     """Retrieve a single task by its ID."""
     # Get all tenant IDs the user has access to
@@ -101,7 +104,7 @@ async def update_task(
     task_data: TaskUpdate,
     task_id: str = Path(description="ID of the task to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.EDIT_TASKS, tenant_from="auto"))
 ):
     """Update a task's details."""
     # Get all tenant IDs the user has access to
@@ -129,7 +132,7 @@ async def update_task(
 async def delete_task(
     task_id: str = Path(description="ID of the task to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.DELETE_TASKS, tenant_from="auto"))
 ):
     """Delete a task by its ID."""
     # Get all tenant IDs the user has access to

@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Record, User
 from ..security import get_current_user
+from ..dependencies import requires_permission
+from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.record import RecordCreate, RecordUpdate, RecordResponse
 
@@ -19,8 +21,9 @@ router = APIRouter()
 async def get_records(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter records by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_RECORDS))
 ):
     """Retrieve all records accessible to the current user with pagination."""
     # Get all tenant IDs the user has access to
@@ -56,7 +59,7 @@ async def create_record(
     record_data: RecordCreate,
     tenant_id: str = Query(description="ID of the tenant to create the record in"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.CREATE_RECORDS))
 ):
     """Create a new record within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -78,7 +81,7 @@ async def create_record(
 async def get_record(
     record_id: str = Path(description="ID of the record to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.VIEW_RECORDS, tenant_from="auto"))
 ):
     """Retrieve a single record by its ID."""
     # Get all tenant IDs the user has access to
@@ -100,7 +103,7 @@ async def update_record(
     record_data: RecordUpdate,
     record_id: str = Path(description="ID of the record to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.EDIT_RECORDS, tenant_from="auto"))
 ):
     """Update a record's details."""
     # Get all tenant IDs the user has access to
@@ -128,7 +131,7 @@ async def update_record(
 async def delete_record(
     record_id: str = Path(description="ID of the record to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission(EPermission.DELETE_RECORDS, tenant_from="auto"))
 ):
     """Delete a record by its ID."""
     # Get all tenant IDs the user has access to
