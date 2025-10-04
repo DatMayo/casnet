@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Tenant, User, UserTenantRole
 from ..security import get_current_user
-from ..dependencies import requires_owner, requires_admin_or_owner, get_permission_service_dep
+from ..dependencies import get_permission_service_dep
+from ..dependencies import get_role_checker_from_path, get_admin_or_owner_checker_from_path
 from ..permissions import PermissionService
 from ..enum.erole import ERole
 from ..schemas.pagination import PaginatedResponse
@@ -131,7 +132,7 @@ async def update_tenant(
     tenant_data: TenantUpdate,
     tenant_id: str = Path(description="ID of the tenant to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_admin_or_owner(tenant_from="path"))
+    current_user: User = Depends(get_admin_or_owner_checker_from_path())
 ):
     """Update an existing tenant's information (only if user is assigned to it)."""
     from ..exceptions import TenantAccessError, DuplicateResourceError
@@ -170,7 +171,7 @@ async def update_tenant(
 async def delete_tenant(
     tenant_id: str = Path(description="ID of the tenant to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_owner(tenant_from="path"))
+    current_user: User = Depends(get_role_checker_from_path(ERole.OWNER))
 ):
     """Deletes a tenant by its ID (only if user is assigned to it)."""
     from ..exceptions import TenantAccessError

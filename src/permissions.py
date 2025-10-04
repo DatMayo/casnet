@@ -99,6 +99,19 @@ class PermissionService:
         ).all()
         
         return [ur.tenant_id for ur in user_roles]
+
+    def get_tenant_id_for_resource(self, resource_id: str) -> Optional[str]:
+        """Find the tenant_id for a given resource ID by checking all resource tables."""
+        from .models import Person, Record, Task, Calendar, Tag
+
+        resource_tables = [Person, Record, Task, Calendar, Tag]
+
+        for table in resource_tables:
+            resource = self.db.query(table).filter(table.id == resource_id).first()
+            if resource and hasattr(resource, 'tenant_id'):
+                return resource.tenant_id
+        
+        return None
     
     def assign_user_role(self, user_id: str, tenant_id: str, role: ERole) -> UserTenantRole:
         """Assign a role to a user within a tenant."""

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Task, User
 from ..security import get_current_user
-from ..dependencies import requires_permission
+from ..dependencies import get_permission_checker, requires_permission_for_resource
 from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.task import TaskCreate, TaskUpdate, TaskResponse
@@ -24,7 +24,7 @@ async def get_tasks(
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
     tenant_id: str = Query(description="ID of the tenant to filter tasks by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.VIEW_TASKS))
+    current_user: User = Depends(get_permission_checker(EPermission.VIEW_TASKS))
 ):
     """Retrieve all tasks accessible to the current user with pagination."""
     # Get all tenant IDs the user has access to
@@ -60,7 +60,7 @@ async def create_task(
     task_data: TaskCreate,
     tenant_id: str = Query(description="ID of the tenant to create the task in"), 
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.CREATE_TASKS))
+    current_user: User = Depends(get_permission_checker(EPermission.CREATE_TASKS))
 ):
     """Create a new task within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -80,9 +80,9 @@ async def create_task(
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def get_task(
-    task_id: str = Path(description="ID of the task to retrieve"),
+    task_id: str = Path(..., alias="resource_id", description="ID of the task to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.VIEW_TASKS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.VIEW_TASKS))
 ):
     """Retrieve a single task by its ID."""
     # Get all tenant IDs the user has access to
@@ -102,9 +102,9 @@ async def get_task(
 @router.put("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def update_task(
     task_data: TaskUpdate,
-    task_id: str = Path(description="ID of the task to update"),
+    task_id: str = Path(..., alias="resource_id", description="ID of the task to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.EDIT_TASKS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.EDIT_TASKS))
 ):
     """Update a task's details."""
     # Get all tenant IDs the user has access to
@@ -130,9 +130,9 @@ async def update_task(
 
 @router.delete("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def delete_task(
-    task_id: str = Path(description="ID of the task to delete"),
+    task_id: str = Path(..., alias="resource_id", description="ID of the task to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.DELETE_TASKS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.DELETE_TASKS))
 ):
     """Delete a task by its ID."""
     # Get all tenant IDs the user has access to

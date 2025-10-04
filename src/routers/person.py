@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Person, User
 from ..security import get_current_user
-from ..dependencies import requires_permission
+from ..dependencies import get_permission_checker, requires_permission_for_resource
 from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.person import PersonResponse, PersonCreate, PersonUpdate
@@ -25,7 +25,7 @@ async def get_persons(
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
     tenant_id: str = Query(description="ID of the tenant to filter persons by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.VIEW_PERSONS))
+    current_user: User = Depends(get_permission_checker(EPermission.VIEW_PERSONS))
 ):
     """Retrieve all persons from a specific tenant with pagination."""
     # Verify current user has access to the requested tenant
@@ -62,7 +62,7 @@ async def create_person(
     person_data: PersonCreate,
     tenant_id: str = Query(description="ID of the tenant to create the person in"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.CREATE_PERSONS))
+    current_user: User = Depends(get_permission_checker(EPermission.CREATE_PERSONS))
 ):
     """Create a new person within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -82,9 +82,9 @@ async def create_person(
 
 @router.get("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def get_person(
-    person_id: str = Path(description="ID of the person to retrieve"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.VIEW_PERSONS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.VIEW_PERSONS))
 ):
     """Retrieve a single person by their ID."""
     # Get all tenant IDs the user has access to
@@ -104,9 +104,9 @@ async def get_person(
 @router.put("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def update_person(
     person_data: PersonUpdate,
-    person_id: str = Path(description="ID of the person to update"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.EDIT_PERSONS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.EDIT_PERSONS))
 ):
     """Update a person's details."""
     # Get all tenant IDs the user has access to
@@ -132,9 +132,9 @@ async def update_person(
 
 @router.delete("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def delete_person(
-    person_id: str = Path(description="ID of the person to delete"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(requires_permission(EPermission.DELETE_PERSONS, tenant_from="auto"))
+    current_user: User = Depends(requires_permission_for_resource(EPermission.DELETE_PERSONS))
 ):
     """Delete a person by their ID."""
     # Get all tenant IDs the user has access to
