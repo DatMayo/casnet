@@ -7,7 +7,6 @@ from sqlalchemy import String, Text, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin, UUIDMixin
-from .user import user_tenant_association
 
 
 class Tenant(Base, UUIDMixin, TimestampMixin):
@@ -19,13 +18,27 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # 1=active, 0=inactive
     
-    # Many-to-many relationship with users
-    users: Mapped[List["User"]] = relationship(
-        "User",
-        secondary=user_tenant_association,
-        back_populates="tenants",
+    # Role-based relationship with users
+    user_roles: Mapped[List["UserTenantRole"]] = relationship(
+        "UserTenantRole",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
         lazy="selectin"
     )
+    
+    # Permission-based relationship with users
+    user_permissions: Mapped[List["UserTenantPermission"]] = relationship(
+        "UserTenantPermission",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    
+    # Convenience property to get users (for backward compatibility)
+    @property
+    def users(self) -> List["User"]:
+        """Get all users that have access to this tenant."""
+        return [role.user for role in self.user_roles]
     
     # One-to-many relationships with other entities
     persons: Mapped[List["Person"]] = relationship(

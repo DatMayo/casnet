@@ -10,34 +10,35 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Person, User
 from ..security import get_current_user
+from ..dependencies import get_permission_checker, requires_permission_for_resource
+from ..enum.epermission import EPermission
 from ..schemas.pagination import PaginatedResponse
-from ..schemas.person import PersonCreate, PersonUpdate, PersonResponse
+from ..schemas.person import PersonResponse, PersonCreate, PersonUpdate
 from ..validation import validate_name, sanitize_input
 
 router = APIRouter()
 
 
-@router.get("/person/{tenant_id}", response_model=PaginatedResponse[PersonResponse], tags=["persons"])
+@router.get("/persons", response_model=PaginatedResponse[PersonResponse], tags=["persons"])
 async def get_persons(
-    tenant_id: str = Path(description="ID of the tenant to retrieve persons from"), 
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter persons by"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_permission_checker(EPermission.VIEW_PERSONS))
 ):
-    """
-    Retrieve a paginated list of persons for a specific tenant.
-    """
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
+    """Retrieve all persons from a specific tenant with pagination."""
+    # Verify current user has access to the requested tenant
+    user_tenant_ids = [t.id for t in current_user.tenants]
     if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+        from ..exceptions import TenantAccessError
+        raise TenantAccessError(tenant_id, user_tenant_ids)
 
-    persons_query = db.query(Person).filter(Person.tenant_id == tenant_id)
-    
-    total_count = persons_query.count()
-    
     offset = (page - 1) * page_size
+    
+    # Query persons only from the specified tenant
+    persons_query = db.query(Person).filter(Person.tenant_id == tenant_id)
+    total_count = persons_query.count()
     persons = persons_query.offset(offset).limit(page_size).all()
     
     total_pages = (total_count + page_size - 1) // page_size
@@ -56,12 +57,12 @@ async def get_persons(
     )
 
 
-@router.post("/person/{tenant_id}", response_model=PersonResponse, tags=["persons"], status_code=201)
+@router.post("/persons", response_model=PersonResponse, tags=["persons"], status_code=201)
 async def create_person(
     person_data: PersonCreate,
-    tenant_id: str = Path(description="ID of the tenant to create the person in"),
+    tenant_id: str = Query(description="ID of the tenant to create the person in"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_permission_checker(EPermission.CREATE_PERSONS))
 ):
     """Create a new person within a specific tenant."""
     from ..exceptions import TenantAccessError
@@ -79,42 +80,46 @@ async def create_person(
     return new_person
 
 
-@router.get("/person/{tenant_id}/{person_id}", response_model=PersonResponse, tags=["persons"])
+@router.get("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def get_person(
-    tenant_id: str = Path(description="ID of the tenant that owns the person"),
-    person_id: str = Path(description="ID of the person to retrieve"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to retrieve"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission_for_resource(EPermission.VIEW_PERSONS))
 ):
     """Retrieve a single person by their ID."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    person = db.query(Person).filter(Person.id == person_id, Person.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Query person from user's accessible tenants
+    person = db.query(Person).filter(
+        Person.id == person_id,
+        Person.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not person:
-        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found or access denied")
     return person
 
 
-@router.put("/person/{tenant_id}/{person_id}", response_model=PersonResponse, tags=["persons"])
+@router.put("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def update_person(
     person_data: PersonUpdate,
-    tenant_id: str = Path(description="ID of the tenant that owns the person"),
-    person_id: str = Path(description="ID of the person to update"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission_for_resource(EPermission.EDIT_PERSONS))
 ):
     """Update a person's details."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    person = db.query(Person).filter(Person.id == person_id, Person.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Find person in user's accessible tenants
+    person = db.query(Person).filter(
+        Person.id == person_id,
+        Person.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not person:
-        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found or access denied")
 
     update_data = person_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -125,22 +130,24 @@ async def update_person(
     return person
 
 
-@router.delete("/person/{tenant_id}/{person_id}", response_model=PersonResponse, tags=["persons"])
+@router.delete("/persons/{person_id}", response_model=PersonResponse, tags=["persons"])
 async def delete_person(
-    tenant_id: str = Path(description="ID of the tenant that owns the person"),
-    person_id: str = Path(description="ID of the person to delete"),
+    person_id: str = Path(..., alias="resource_id", description="ID of the person to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(requires_permission_for_resource(EPermission.DELETE_PERSONS))
 ):
     """Delete a person by their ID."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    person = db.query(Person).filter(Person.id == person_id, Person.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Find person in user's accessible tenants
+    person = db.query(Person).filter(
+        Person.id == person_id,
+        Person.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not person:
-        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Person with ID {person_id} not found or access denied")
 
     db.delete(person)
     db.commit()

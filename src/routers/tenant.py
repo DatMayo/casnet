@@ -9,20 +9,23 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Tenant, User
+from ..models import Tenant, User, UserTenantRole
 from ..security import get_current_user
+from ..dependencies import get_permission_service_dep
+from ..dependencies import get_role_checker_from_path, get_admin_or_owner_checker_from_path
+from ..permissions import PermissionService
+from ..enum.erole import ERole
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.tenant import TenantCreate, TenantUpdate, TenantResponse
 from ..validation import validate_name, sanitize_input
-
 router = APIRouter()
 
 
 @router.get(
-    "/tenant",
+    "/tenants",
     response_model=PaginatedResponse[TenantResponse],
     tags=["tenants"],
-    summary="Lists all tenants assigned to the current user"
+    summary="Get all tenants accessible to the current user"
 )
 async def get_tenants(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
@@ -57,7 +60,7 @@ async def get_tenants(
 
 
 @router.get(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
     summary="Shows a specific tenant"
@@ -82,19 +85,20 @@ async def get_tenant(
 
 
 @router.post(
-    "/tenant",
+    "/tenants",
     response_model=TenantResponse,
     tags=["tenants"],
     status_code=201,
-    summary="Create a new tenant and assign it to the current user",
+    summary="Create a new tenant and assign the current user as owner",
 )
 async def create_tenant(
     tenant_data: TenantCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    permission_service: PermissionService = Depends(get_permission_service_dep)
 ):
     """
-    Creates a new tenant and automatically assigns the current user to it.
+    Creates a new tenant and automatically assigns the current user as owner.
     """
     from ..exceptions import DuplicateResourceError
     validated_name = validate_name(sanitize_input(tenant_data.name), "tenant_name")
@@ -108,17 +112,18 @@ async def create_tenant(
         description=sanitize_input(tenant_data.description) if tenant_data.description else None
     )
     
-    # Add the current user to the new tenant's user list
-    new_tenant.users.append(current_user)
-    
     db.add(new_tenant)
     db.commit()
     db.refresh(new_tenant)
+    
+    # Assign the current user as owner of the new tenant
+    permission_service.assign_user_role(current_user.id, new_tenant.id, ERole.OWNER)
+    
     return new_tenant
 
 
 @router.put(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
     summary="Update an existing tenant's information",
@@ -127,7 +132,7 @@ async def update_tenant(
     tenant_data: TenantUpdate,
     tenant_id: str = Path(description="ID of the tenant to update"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_admin_or_owner_checker_from_path())
 ):
     """Update an existing tenant's information (only if user is assigned to it)."""
     from ..exceptions import TenantAccessError, DuplicateResourceError
@@ -158,15 +163,15 @@ async def update_tenant(
 
 
 @router.delete(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
-    summary="Deletes a tenant by its ID"
+    summary="Deletes a tenant by its ID (owner only)"
 )
 async def delete_tenant(
     tenant_id: str = Path(description="ID of the tenant to delete"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_role_checker_from_path(ERole.OWNER))
 ):
     """Deletes a tenant by its ID (only if user is assigned to it)."""
     from ..exceptions import TenantAccessError

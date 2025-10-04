@@ -3,19 +3,10 @@ User model with authentication and tenant relationships.
 """
 from typing import List
 
-from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin, UUIDMixin
-
-
-# Association table for many-to-many relationship between users and tenants
-user_tenant_association = Table(
-    'user_tenants',
-    Base.metadata,
-    Column('user_id', String(36), ForeignKey('users.id'), primary_key=True),
-    Column('tenant_id', String(36), ForeignKey('tenants.id'), primary_key=True),
-)
 
 
 class User(Base, UUIDMixin, TimestampMixin):
@@ -26,13 +17,27 @@ class User(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     
-    # Many-to-many relationship with tenants
-    tenants: Mapped[List["Tenant"]] = relationship(
-        "Tenant",
-        secondary=user_tenant_association,
-        back_populates="users",
+    # Role-based relationship with tenants
+    tenant_roles: Mapped[List["UserTenantRole"]] = relationship(
+        "UserTenantRole",
+        back_populates="user",
+        cascade="all, delete-orphan",
         lazy="selectin"
     )
+    
+    # Permission-based relationship with tenants
+    tenant_permissions: Mapped[List["UserTenantPermission"]] = relationship(
+        "UserTenantPermission",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    
+    # Convenience property to get tenants (for backward compatibility)
+    @property
+    def tenants(self) -> List["Tenant"]:
+        """Get all tenants this user has access to."""
+        return [role.tenant for role in self.tenant_roles]
     
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name={self.name})>"
