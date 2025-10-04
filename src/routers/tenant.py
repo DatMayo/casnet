@@ -13,16 +13,14 @@ from ..models import Tenant, User
 from ..security import get_current_user
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.tenant import TenantCreate, TenantUpdate, TenantResponse
-from ..validation import validate_name, sanitize_input
-
 router = APIRouter()
 
 
 @router.get(
-    "/tenant",
+    "/tenants",
     response_model=PaginatedResponse[TenantResponse],
     tags=["tenants"],
-    summary="Lists all tenants assigned to the current user"
+    summary="Get all tenants accessible to the current user"
 )
 async def get_tenants(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
@@ -57,7 +55,7 @@ async def get_tenants(
 
 
 @router.get(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
     summary="Shows a specific tenant"
@@ -82,7 +80,7 @@ async def get_tenant(
 
 
 @router.post(
-    "/tenant",
+    "/tenants",
     response_model=TenantResponse,
     tags=["tenants"],
     status_code=201,
@@ -118,7 +116,7 @@ async def create_tenant(
 
 
 @router.put(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
     summary="Update an existing tenant's information",
@@ -158,7 +156,7 @@ async def update_tenant(
 
 
 @router.delete(
-    "/tenant/{tenant_id}",
+    "/tenants/{tenant_id}",
     response_model=TenantResponse,
     tags=["tenants"],
     summary="Deletes a tenant by its ID"

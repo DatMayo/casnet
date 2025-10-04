@@ -20,7 +20,7 @@ from ..validation import validate_name, sanitize_input
 router = APIRouter()
 
 
-@router.get("/user", response_model=PaginatedResponse[UserResponse], tags=["users"])
+@router.get("/users", response_model=PaginatedResponse[UserResponse], tags=["users"])
 async def get_users(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
@@ -61,7 +61,7 @@ async def get_users(
     )
 
 
-@router.post("/user", response_model=UserResponse, tags=["users"], status_code=201)
+@router.post("/users", response_model=UserResponse, tags=["users"], status_code=201)
 async def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db)
@@ -87,7 +87,7 @@ async def create_user(
     return new_user
 
 
-@router.get("/user/{user_id}", response_model=UserResponse, tags=["users"])
+@router.get("/users/{user_id}", response_model=UserResponse, tags=["users"])
 async def get_user(
     user_id: str = Path(description="ID of the user to retrieve"),
     db: Session = Depends(get_db),
@@ -109,7 +109,7 @@ async def get_user(
     return user
 
 
-@router.put("/user/{user_id}", response_model=UserResponse, tags=["users"])
+@router.put("/users/{user_id}", response_model=UserResponse, tags=["users"])
 async def update_user(
     user_data: UserUpdate,
     user_id: str = Path(description="ID of the user to update"),
@@ -147,7 +147,7 @@ async def update_user(
     return user
 
 
-@router.delete("/user/{user_id}", response_model=UserResponse, tags=["users"])
+@router.delete("/users/{user_id}", response_model=UserResponse, tags=["users"])
 async def delete_user(
     user_id: str = Path(description="ID of the user to delete"),
     db: Session = Depends(get_db),

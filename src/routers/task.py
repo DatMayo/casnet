@@ -16,47 +16,46 @@ from ..schemas.task import TaskCreate, TaskUpdate, TaskResponse
 router = APIRouter()
 
 
-@router.get("/task/{tenant_id}", response_model=PaginatedResponse[TaskResponse], tags=["tasks"])
+@router.get("/tasks", response_model=PaginatedResponse[TaskResponse], tags=["tasks"])
 async def get_tasks(
-    tenant_id: str = Path(description="ID of the tenant to retrieve tasks from"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
-    page_size: int = Query(default=20, ge=1, le=100, description="Number of tasks per page"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Retrieve a paginated list of tasks for a specific tenant."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
+    """Retrieve all tasks accessible to the current user with pagination."""
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    if not user_tenant_ids:
+        return PaginatedResponse(
+            items=[],
+            page=page,
+            page_size=page_size,
+            total_count=0,
+            total_pages=0
+        )
 
-    tasks_query = db.query(Task).filter(Task.tenant_id == tenant_id)
-    
-    total_count = tasks_query.count()
-    
     offset = (page - 1) * page_size
+    
+    # Query tasks from all user's tenants
+    tasks_query = db.query(Task).filter(Task.tenant_id.in_(user_tenant_ids))
+    total_count = tasks_query.count()
     tasks = tasks_query.offset(offset).limit(page_size).all()
     
-    total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
-        data=tasks,
-        meta={
-            "total_items": total_count,
-            "total_pages": total_pages,
-            "current_page": page,
-            "page_size": page_size,
-            "has_next": page < total_pages,
-            "has_previous": page > 1,
-            "next_page": page + 1 if page < total_pages else None,
-            "previous_page": page - 1 if page > 1 else None
-        }
+        items=tasks,
+        page=page,
+        page_size=page_size,
+        total_count=total_count,
+        total_pages=(total_count + page_size - 1) // page_size
     )
 
 
-@router.post("/task/{tenant_id}", response_model=TaskResponse, tags=["tasks"], status_code=201)
+@router.post("/tasks", response_model=TaskResponse, tags=["tasks"], status_code=201)
 async def create_task(
     task_data: TaskCreate,
-    tenant_id: str = Path(description="ID of the tenant to create the task in"), 
+    tenant_id: str = Query(description="ID of the tenant to create the task in"), 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -76,42 +75,46 @@ async def create_task(
     return new_task
 
 
-@router.get("/task/{tenant_id}/{task_id}", response_model=TaskResponse, tags=["tasks"])
+@router.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def get_task(
-    tenant_id: str = Path(description="ID of the tenant that owns the task"),
     task_id: str = Path(description="ID of the task to retrieve"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Retrieve a single task by its ID."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Query task from user's accessible tenants
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not task:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found or access denied")
     return task
 
 
-@router.put("/task/{tenant_id}/{task_id}", response_model=TaskResponse, tags=["tasks"])
+@router.put("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def update_task(
     task_data: TaskUpdate,
-    tenant_id: str = Path(description="ID of the tenant that owns the task"),
     task_id: str = Path(description="ID of the task to update"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Update a task's details."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Find task in user's accessible tenants
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not task:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found or access denied")
 
     update_data = task_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -122,22 +125,24 @@ async def update_task(
     return task
 
 
-@router.delete("/task/{tenant_id}/{task_id}", response_model=TaskResponse, tags=["tasks"])
+@router.delete("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def delete_task(
-    tenant_id: str = Path(description="ID of the tenant that owns the task"),
     task_id: str = Path(description="ID of the task to delete"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Delete a task by its ID."""
-    from ..exceptions import TenantAccessError
-    user_tenant_ids = {t.id for t in current_user.tenants}
-    if tenant_id not in user_tenant_ids:
-        raise TenantAccessError(tenant_id, list(user_tenant_ids))
-
-    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tenant_id).first()
+    # Get all tenant IDs the user has access to
+    user_tenant_ids = [t.id for t in current_user.tenants]
+    
+    # Find task in user's accessible tenants
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.tenant_id.in_(user_tenant_ids)
+    ).first()
+    
     if not task:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found in this tenant")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found or access denied")
 
     db.delete(task)
     db.commit()
