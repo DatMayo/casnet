@@ -96,49 +96,50 @@ Full CRUD operations with pagination are available for all core resources. All e
 
 #### **RESTful Endpoint Structure**
 ```
-GET    /users          # List all users (paginated)
-POST   /users          # Create new user
-GET    /users/{id}     # Get specific user
-PUT    /users/{id}     # Update user
-DELETE /users/{id}     # Delete user
+GET    /users?tenant_id=xyz    # List users from specific tenant (paginated)
+POST   /users                  # Create new user
+GET    /users/{id}             # Get specific user
+PUT    /users/{id}             # Update user
+DELETE /users/{id}             # Delete user
 
-GET    /tenants        # List user's tenants
-POST   /tenants        # Create new tenant  
-GET    /tenants/{id}   # Get specific tenant
-PUT    /tenants/{id}   # Update tenant
-DELETE /tenants/{id}   # Delete tenant
+GET    /tenants                # List user's accessible tenants
+POST   /tenants                # Create new tenant  
+GET    /tenants/{id}           # Get specific tenant
+PUT    /tenants/{id}           # Update tenant
+DELETE /tenants/{id}           # Delete tenant
 
-GET    /persons        # List all accessible persons (from all user's tenants)
+GET    /persons?tenant_id=xyz  # List persons from specific tenant (paginated)
 POST   /persons?tenant_id=xyz  # Create person in specific tenant
-GET    /persons/{id}   # Get specific person (auto-searches user's tenants)
-PUT    /persons/{id}   # Update person
-DELETE /persons/{id}   # Delete person
+GET    /persons/{id}           # Get specific person (auto-searches user's tenants)
+PUT    /persons/{id}           # Update person
+DELETE /persons/{id}           # Delete person
 
-GET    /tasks          # List all accessible tasks
+GET    /tasks?tenant_id=xyz    # List tasks from specific tenant (paginated)
 POST   /tasks?tenant_id=xyz    # Create task in specific tenant
-GET    /tasks/{id}     # Get specific task
-PUT    /tasks/{id}     # Update task
-DELETE /tasks/{id}     # Delete task
+GET    /tasks/{id}             # Get specific task
+PUT    /tasks/{id}             # Update task
+DELETE /tasks/{id}             # Delete task
 
-GET    /records        # List all accessible records
+GET    /records?tenant_id=xyz  # List records from specific tenant (paginated)
 POST   /records?tenant_id=xyz  # Create record in specific tenant
-GET    /records/{id}   # Get specific record
-PUT    /records/{id}   # Update record
-DELETE /records/{id}   # Delete record
+GET    /records/{id}           # Get specific record
+PUT    /records/{id}           # Update record
+DELETE /records/{id}           # Delete record
 
-GET    /tags           # List all accessible tags
+GET    /tags?tenant_id=xyz     # List tags from specific tenant (paginated)
 POST   /tags?tenant_id=xyz     # Create tag in specific tenant
-GET    /tags/{id}      # Get specific tag
-PUT    /tags/{id}      # Update tag
-DELETE /tags/{id}      # Delete tag
+GET    /tags/{id}              # Get specific tag
+PUT    /tags/{id}              # Update tag
+DELETE /tags/{id}              # Delete tag
 ```
 
 #### **Key Improvements**
 - ✅ **Consistent plural naming** - All resources use plural forms (`/users`, `/persons`, etc.)
-- ✅ **Simplified URLs** - No more complex `/{tenant_id}/{resource_id}` paths
-- ✅ **Automatic tenant filtering** - Users only see data from their accessible tenants
-- ✅ **RESTful design** - Follows modern API design patterns
-- ✅ **Enhanced security** - Tenant access automatically validated
+- ✅ **Clean URLs** - No more complex `/{tenant_id}/{resource_id}` paths in routes
+- ✅ **Flexible tenant filtering** - List endpoints use query parameters for tenant-specific data
+- ✅ **RESTful design** - Follows modern API design patterns with proper HTTP methods
+- ✅ **Enhanced security** - Tenant access automatically validated on all endpoints
+- ✅ **Hybrid approach** - Clean URLs with optional tenant-specific filtering when needed
 
 ### 🏥 Health & Monitoring
 - `GET /health` - Basic health check
@@ -294,11 +295,17 @@ MAX_DESCRIPTION_LENGTH=5000
 
 ## 📊 Pagination
 
-All list endpoints return paginated results with comprehensive metadata:
+All list endpoints return paginated results with comprehensive metadata. The API uses a consistent `data`/`meta` structure:
 
 ```json
 {
-  "data": [...],
+  "data": [
+    {
+      "id": "person_123",
+      "name": "John Doe",
+      "tenant_id": "tenant_xyz"
+    }
+  ],
   "meta": {
     "total_items": 150,
     "total_pages": 8, 
@@ -311,6 +318,11 @@ All list endpoints return paginated results with comprehensive metadata:
   }
 }
 ```
+
+### Pagination Parameters
+- `page` - Page number (1-indexed, default: 1)  
+- `page_size` - Items per page (default: 20, max: 100)
+- `tenant_id` - Required for list endpoints to specify which tenant's data to retrieve
 
 ## 🏥 Health Monitoring
 
@@ -349,15 +361,18 @@ After starting the server, you can immediately test the API:
 
 1. **Get Auth Token**: POST to `/auth/login` with `admin/changeme`
 2. **Test Profile**: GET `/auth/me` to see your user profile and accessible tenants
-3. **List Resources**: GET `/persons`, `/tasks`, etc. (will be empty initially)
-4. **Create Data**: POST to any resource endpoint with `tenant_id` as query parameter
+3. **Get Tenant ID**: Note the tenant ID from the `/auth/me` response (e.g., "Default Organization")
+4. **List Resources**: GET `/persons?tenant_id=xyz`, `/tasks?tenant_id=xyz`, etc. using your tenant ID
+5. **Create Data**: POST to any resource endpoint with `tenant_id` as query parameter
+6. **Individual Access**: GET `/persons/{id}`, `/tasks/{id}` (auto-searches across accessible tenants)
 
 ### Enhanced Developer Experience
 - **Automatic defaults** - No setup required, default admin and tenant created automatically
-- **RESTful URLs** - Clean, predictable endpoint structure
+- **RESTful URLs** - Clean, predictable endpoint structure with query parameter filtering
 - **Comprehensive errors** - Detailed validation feedback and clear error messages
-- **No tenant complexity** - Just use resource IDs, tenant filtering is automatic
+- **Flexible tenant access** - Use query parameters for lists, individual IDs work across tenants
 - **Modern patterns** - Follows REST conventions with proper HTTP methods and status codes
+- **Hybrid approach** - Balance between simplicity and tenant-specific control
 
 ### Adding New Endpoints
 1.  **Model**: Create or update a SQLAlchemy model in `src/models/`.
