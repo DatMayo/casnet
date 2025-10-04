@@ -30,11 +30,17 @@ async def get_persons(
     
     if not user_tenant_ids:
         return PaginatedResponse(
-            items=[],
-            page=page,
-            page_size=page_size,
-            total_count=0,
-            total_pages=0
+            data=[],
+            meta={
+                "total_items": 0,
+                "total_pages": 0,
+                "current_page": page,
+                "page_size": page_size,
+                "has_next": False,
+                "has_previous": False,
+                "next_page": None,
+                "previous_page": None
+            }
         )
 
     offset = (page - 1) * page_size
@@ -44,12 +50,19 @@ async def get_persons(
     total_count = persons_query.count()
     persons = persons_query.offset(offset).limit(page_size).all()
     
+    total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
-        items=persons,
-        page=page,
-        page_size=page_size,
-        total_count=total_count,
-        total_pages=(total_count + page_size - 1) // page_size
+        data=persons,
+        meta={
+            "total_items": total_count,
+            "total_pages": total_pages,
+            "current_page": page,
+            "page_size": page_size,
+            "has_next": page < total_pages,
+            "has_previous": page > 1,
+            "next_page": page + 1 if page < total_pages else None,
+            "previous_page": page - 1 if page > 1 else None
+        }
     )
 
 
