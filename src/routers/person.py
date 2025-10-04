@@ -21,32 +21,21 @@ router = APIRouter()
 async def get_persons(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter persons by"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Retrieve all persons accessible to the current user with pagination."""
-    # Get all tenant IDs the user has access to
+    """Retrieve all persons from a specific tenant with pagination."""
+    # Verify current user has access to the requested tenant
     user_tenant_ids = [t.id for t in current_user.tenants]
-    
-    if not user_tenant_ids:
-        return PaginatedResponse(
-            data=[],
-            meta={
-                "total_items": 0,
-                "total_pages": 0,
-                "current_page": page,
-                "page_size": page_size,
-                "has_next": False,
-                "has_previous": False,
-                "next_page": None,
-                "previous_page": None
-            }
-        )
+    if tenant_id not in user_tenant_ids:
+        from ..exceptions import TenantAccessError
+        raise TenantAccessError(tenant_id, user_tenant_ids)
 
     offset = (page - 1) * page_size
     
-    # Query persons from all user's tenants
-    persons_query = db.query(Person).filter(Person.tenant_id.in_(user_tenant_ids))
+    # Query persons only from the specified tenant
+    persons_query = db.query(Person).filter(Person.tenant_id == tenant_id)
     total_count = persons_query.count()
     persons = persons_query.offset(offset).limit(page_size).all()
     
