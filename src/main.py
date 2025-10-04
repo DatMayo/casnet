@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import asyncio
-from .routers import tenant, user, person, task, calendar, record, tag, auth, health
+from .routers import tenant, user, person, task, calendar, record, tag, auth, health, user_management
 from .exceptions import BaseAPIException
 from .schemas.error import BaseErrorResponse
 from .config import settings
@@ -117,6 +117,7 @@ app.include_router(health.router)  # Health checks (no auth required)
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(tenant.router)
 app.include_router(user.router)
+app.include_router(user_management.router)  # User/role/permission management
 app.include_router(person.router)
 app.include_router(task.router)
 app.include_router(calendar.router)
