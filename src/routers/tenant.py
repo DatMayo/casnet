@@ -13,6 +13,7 @@ from ..models import Tenant, User
 from ..security import get_current_user
 from ..schemas.pagination import PaginatedResponse
 from ..schemas.tenant import TenantCreate, TenantUpdate, TenantResponse
+from ..validation import validate_name, sanitize_input
 router = APIRouter()
 
 
