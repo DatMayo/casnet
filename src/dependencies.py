@@ -36,7 +36,7 @@ class PermissionDependency:
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
         tenant_id: Optional[str] = Query(None, description="Tenant ID"),
-        tenant_id_path: Optional[str] = Path(None, alias="tenant_id")
+        tenant_id_path: Optional[str] = Query(None, alias="tenant_id_path")
     ) -> User:
         """Check if current user has the required permission."""
         permission_service = get_permission_service(db)
@@ -96,7 +96,7 @@ class RoleDependency:
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
         tenant_id: Optional[str] = Query(None, description="Tenant ID"),
-        tenant_id_path: Optional[str] = Path(None, alias="tenant_id")
+        tenant_id_path: Optional[str] = Query(None, alias="tenant_id_path")
     ) -> User:
         """Check if current user has the required role."""
         permission_service = get_permission_service(db)
@@ -152,7 +152,7 @@ def requires_admin_or_owner(tenant_from: str = "query"):
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
         tenant_id: Optional[str] = Query(None, description="Tenant ID"),
-        tenant_id_path: Optional[str] = Path(None, alias="tenant_id")
+        tenant_id_path: Optional[str] = Query(None, alias="tenant_id_path")
     ) -> User:
         permission_service = get_permission_service(db)
         
@@ -184,7 +184,7 @@ def requires_admin_or_owner(tenant_from: str = "query"):
         
         return current_user
     
-    return Depends(check_admin_or_owner)
+    return check_admin_or_owner
 
 
 # Dependency to get PermissionService
