@@ -60,21 +60,21 @@ def create_tables():
 
 def create_default_admin_account(db: Session) -> User:
     """
-    Create the default admin account if it doesn't exist.
+    Create the default admin account only if no users exist in the database.
     
     Args:
         db: Database session
         
     Returns:
-        User: The admin user account
+        User: The admin user account or None if users already exist
     """
-    # Check if admin account already exists
-    admin = db.query(User).filter(User.name == "admin").first()
-    if admin:
-        logger.info("👤 Admin account already exists")
-        return admin
+    # Check if any users exist in the database
+    user_count = db.query(User).count()
+    if user_count > 0:
+        logger.info("👤 Users already exist in database, skipping default admin creation")
+        return db.query(User).first()  # Return first user for consistency
     
-    # Create default admin account
+    # Create default admin account (only when database is empty)
     hashed_password = get_password_hash("changeme")
     admin = User(
         name="admin",
@@ -90,21 +90,22 @@ def create_default_admin_account(db: Session) -> User:
 
 def create_default_tenant_and_assignment(db: Session) -> Tenant:
     """
-    Create a default tenant and assign the admin user to it.
+    Create a default tenant only if no tenants exist in the database.
+    Assign the first user to the default tenant if created.
     
     Args:
         db: Database session
         
     Returns:
-        Tenant: The default tenant
+        Tenant: The default tenant or None if tenants already exist
     """
-    # Check if default tenant already exists
-    default_tenant = db.query(Tenant).filter(Tenant.name == "Default Organization").first()
-    if default_tenant:
-        logger.info("🏢 Default tenant already exists")
-        return default_tenant
+    # Check if any tenants exist in the database
+    tenant_count = db.query(Tenant).count()
+    if tenant_count > 0:
+        logger.info("🏢 Tenants already exist in database, skipping default tenant creation")
+        return db.query(Tenant).first()  # Return first tenant for consistency
     
-    # Create default tenant
+    # Create default tenant (only when database is empty)
     default_tenant = Tenant(
         name="Default Organization",
         description="Default tenant for initial system setup and administration",
@@ -114,14 +115,14 @@ def create_default_tenant_and_assignment(db: Session) -> Tenant:
     db.commit()
     db.refresh(default_tenant)
     
-    # Assign admin user to default tenant
-    admin_user = db.query(User).filter(User.name == "admin").first()
-    if admin_user and admin_user not in default_tenant.users:
-        default_tenant.users.append(admin_user)
+    # Assign first user to default tenant
+    first_user = db.query(User).first()
+    if first_user and first_user not in default_tenant.users:
+        default_tenant.users.append(first_user)
         db.commit()
-        logger.info("👤 Admin user assigned to default tenant")
+        logger.info("👤 First user assigned to default tenant")
     
-    logger.info("🏢 Default tenant created and admin assigned")
+    logger.info("🏢 Default tenant created and user assigned")
     return default_tenant
 
 
