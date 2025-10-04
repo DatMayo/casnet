@@ -13,7 +13,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.config import settings
-from src.models import Base, User, Tenant
+from src.models import Base, User, Tenant, RolePermission, UserTenantRole
+from src.enum.erole import ERole
+from src.enum.epermission import EPermission
 from src.hashing import get_password_hash
 
 # Configure logging for database initialization
@@ -88,6 +90,62 @@ def create_default_admin_account(db: Session) -> User:
     return admin
 
 
+def create_default_role_permissions(db: Session):
+    """
+    Create default role-permission mappings if they don't exist.
+    
+    Args:
+        db: Database session
+    """
+    # Check if role permissions already exist
+    existing_count = db.query(RolePermission).count()
+    if existing_count > 0:
+        logger.info("🔐 Role permissions already exist, skipping creation")
+        return
+    
+    # Define default role-permission mappings
+    role_permission_mappings = {
+        ERole.OWNER: [
+            # All permissions for owners
+            EPermission.VIEW_PERSONS, EPermission.CREATE_PERSONS, EPermission.EDIT_PERSONS, EPermission.DELETE_PERSONS,
+            EPermission.VIEW_TASKS, EPermission.CREATE_TASKS, EPermission.EDIT_TASKS, EPermission.DELETE_TASKS,
+            EPermission.VIEW_RECORDS, EPermission.CREATE_RECORDS, EPermission.EDIT_RECORDS, EPermission.DELETE_RECORDS,
+            EPermission.VIEW_TAGS, EPermission.CREATE_TAGS, EPermission.EDIT_TAGS, EPermission.DELETE_TAGS,
+            EPermission.VIEW_CALENDAR, EPermission.CREATE_CALENDAR, EPermission.EDIT_CALENDAR, EPermission.DELETE_CALENDAR,
+            EPermission.VIEW_USERS, EPermission.MANAGE_USERS, EPermission.ASSIGN_ROLES, EPermission.MANAGE_PERMISSIONS,
+            EPermission.MANAGE_TENANT, EPermission.DELETE_TENANT, EPermission.VIEW_ANALYTICS
+        ],
+        ERole.ADMIN: [
+            # Most permissions for admins (excluding tenant management)
+            EPermission.VIEW_PERSONS, EPermission.CREATE_PERSONS, EPermission.EDIT_PERSONS, EPermission.DELETE_PERSONS,
+            EPermission.VIEW_TASKS, EPermission.CREATE_TASKS, EPermission.EDIT_TASKS, EPermission.DELETE_TASKS,
+            EPermission.VIEW_RECORDS, EPermission.CREATE_RECORDS, EPermission.EDIT_RECORDS, EPermission.DELETE_RECORDS,
+            EPermission.VIEW_TAGS, EPermission.CREATE_TAGS, EPermission.EDIT_TAGS, EPermission.DELETE_TAGS,
+            EPermission.VIEW_CALENDAR, EPermission.CREATE_CALENDAR, EPermission.EDIT_CALENDAR, EPermission.DELETE_CALENDAR,
+            EPermission.VIEW_USERS, EPermission.MANAGE_USERS, EPermission.ASSIGN_ROLES, EPermission.MANAGE_PERMISSIONS,
+            EPermission.VIEW_ANALYTICS
+        ],
+        ERole.USER: [
+            # Basic permissions for regular users
+            EPermission.VIEW_PERSONS, EPermission.CREATE_PERSONS, EPermission.EDIT_PERSONS,
+            EPermission.VIEW_TASKS, EPermission.CREATE_TASKS, EPermission.EDIT_TASKS,
+            EPermission.VIEW_RECORDS, EPermission.CREATE_RECORDS, EPermission.EDIT_RECORDS,
+            EPermission.VIEW_TAGS, EPermission.CREATE_TAGS, EPermission.EDIT_TAGS,
+            EPermission.VIEW_CALENDAR, EPermission.CREATE_CALENDAR, EPermission.EDIT_CALENDAR
+        ]
+    }
+    
+    # Create role-permission mappings
+    for role, permissions in role_permission_mappings.items():
+        for permission in permissions:
+            role_perm = RolePermission(role=role, permission=permission)
+            db.add(role_perm)
+    
+    db.commit()
+    total_mappings = sum(len(perms) for perms in role_permission_mappings.values())
+    logger.info(f"🔐 Created {total_mappings} role-permission mappings")
+
+
 def create_default_tenant_and_assignment(db: Session) -> Tenant:
     """
     Create a default tenant only if no tenants exist in the database.
@@ -115,27 +173,40 @@ def create_default_tenant_and_assignment(db: Session) -> Tenant:
     db.commit()
     db.refresh(default_tenant)
     
-    # Assign first user to default tenant
+    # Assign first user as OWNER of the default tenant
     first_user = db.query(User).first()
-    if first_user and first_user not in default_tenant.users:
-        default_tenant.users.append(first_user)
-        db.commit()
-        logger.info("👤 First user assigned to default tenant")
+    if first_user:
+        # Check if user already has a role in this tenant
+        existing_role = db.query(UserTenantRole).filter(
+            UserTenantRole.user_id == first_user.id,
+            UserTenantRole.tenant_id == default_tenant.id
+        ).first()
+        
+        if not existing_role:
+            user_role = UserTenantRole(
+                user_id=first_user.id,
+                tenant_id=default_tenant.id,
+                role=ERole.OWNER
+            )
+            db.add(user_role)
+            db.commit()
+            logger.info("👤 First user assigned as OWNER of default tenant")
     
-    logger.info("🏢 Default tenant created and user assigned")
+    logger.info("🏢 Default tenant created and admin user assigned as owner")
     return default_tenant
 
 
 def initialize_database():
     """
-    Initialize the database by creating tables, default admin account, and default tenant.
-    This function is called on application startup.
+    Initialize the database by creating tables, default admin account, default tenant,
+    and role-permission mappings. This function is called on application startup.
     """
     # Create tables
     create_tables()
     
-    # Create default admin account and tenant
+    # Create default data
     with SessionLocal() as db:
+        create_default_role_permissions(db)
         create_default_admin_account(db)
         create_default_tenant_and_assignment(db)
     
