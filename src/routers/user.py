@@ -24,26 +24,26 @@ router = APIRouter()
 async def get_users(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Number of items per page"),
+    tenant_id: str = Query(description="ID of the tenant to filter users by"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieve a paginated list of users that share tenants with the current user.
+    Retrieve a paginated list of users from a specific tenant.
     """
+    # Verify current user has access to the requested tenant
     user_tenant_ids = {t.id for t in current_user.tenants}
+    if tenant_id not in user_tenant_ids:
+        from ..exceptions import TenantAccessError
+        raise TenantAccessError(tenant_id, list(user_tenant_ids))
     
-    if not user_tenant_ids:
-        return PaginatedResponse(data=[], meta={
-            "total_items": 0, "total_pages": 0, "current_page": page, "page_size": page_size, 
-            "has_next": False, "has_previous": False, "next_page": None, "previous_page": None
-        })
+    # Query users only from the specified tenant
+    tenant_users_query = db.query(User).join(User.tenants).filter(Tenant.id == tenant_id).distinct()
     
-    shared_users_query = db.query(User).join(User.tenants).filter(Tenant.id.in_(user_tenant_ids)).distinct()
-    
-    total_count = shared_users_query.count()
+    total_count = tenant_users_query.count()
     
     offset = (page - 1) * page_size
-    users = shared_users_query.offset(offset).limit(page_size).all()
+    users = tenant_users_query.offset(offset).limit(page_size).all()
     
     total_pages = (total_count + page_size - 1) // page_size
     return PaginatedResponse(
