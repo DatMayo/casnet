@@ -16,7 +16,8 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 ## ✨ Key Features
 
 - 🏢 **Multi-Tenant Architecture** - Complete data isolation between departments with smart defaults
-- 🛡️ **Enterprise Security** - Complete JWT auth lifecycle (login/logout/refresh) with automatic tenant filtering
+- 🛡️ **Enterprise Security** - Complete JWT auth lifecycle (login/logout/refresh) with automatic tenant filtering  
+- 🔐 **Advanced RBAC System** - Role-Based Access Control with 23+ permissions and 3-tier roles (OWNER/ADMIN/USER)
 - 📊 **Modern RESTful API** - Clean plural endpoints (`/users`, `/persons`) with consistent patterns
 - 🔄 **Enhanced UX** - Simplified URLs, automatic tenant access, no complex tenant_id parameters
 - 🏥 **Health Monitoring** - Kubernetes-compatible readiness/liveness probes
@@ -32,15 +33,17 @@ A high-performance FastAPI-based backend application designed for **roleplay ser
 ```
 casnet-backend/
 ├── src/                    # Application source code
-│   ├── enum/               # Enumerations (EStatus, EGender)
-│   ├── models/             # SQLAlchemy 2.0 database models
+│   ├── enum/               # Enumerations (EStatus, EGender, ERole, EPermission)
+│   ├── models/             # SQLAlchemy 2.0 database models  
 │   ├── schemas/            # Pydantic data validation schemas
 │   ├── routers/            # API endpoint definitions
 │   ├── config.py           # Environment configuration
 │   ├── database.py         # Database session and initialization
+│   ├── dependencies.py     # FastAPI RBAC dependency factories
 │   ├── exceptions.py       # Custom exception classes
 │   ├── hashing.py          # Password hashing utilities
 │   ├── main.py             # FastAPI application entry point
+│   ├── permissions.py      # RBAC permission service
 │   ├── security.py         # JWT & authentication utilities
 │   ├── util.py             # General helper functions
 │   └── validation.py       # Input validation & sanitization
@@ -64,7 +67,8 @@ For detailed guides, tutorials, and in-depth documentation, visit our **[GitHub 
 - **🛠️ [Local Development Setup](https://github.com/DatMayo/casnet-backend/wiki/Local-Development-Setup)** - Python development environment
 - **🏗️ [Multi-Tenant Architecture](https://github.com/DatMayo/casnet-backend/wiki/Multi-Tenant-Architecture)** - System design and data isolation
 - **🗄️ [Database Schema](https://github.com/DatMayo/casnet-backend/wiki/Database-Schema)** - SQLAlchemy models and relationships
-- **🚀 [Deployment Guide](https://github.com/DatMayo/casnet-backend/wiki/Deployment-Guide)** - Production deployment strategies
+- **🔐 [RBAC System](https://github.com/DatMayo/casnet-backend/wiki/RBAC-System)** - Role-Based Access Control with FastAPI dependencies
+- **🚀 [Deployment Guide](https://github.com/DatMayo/casnet-backend/wiki/Deployment-Guide)** - Production deployment strategies  
 - **🔒 [Authentication Flow](https://github.com/DatMayo/casnet-backend/wiki/Authentication-Flow)** - JWT security implementation
 
 > 💡 **Tip**: The wiki is constantly updated with new examples, troubleshooting guides, and advanced use cases.
@@ -184,16 +188,28 @@ docker-compose logs -f casnet-api
    git clone https://github.com/DatMayo/casnet-backend.git
    cd casnet-backend
    python3 -m venv venv
-   source venv/bin/activate
+   source venv/bin/activate  # Linux/Mac
+   # OR: .\venv\Scripts\activate  # Windows
    ```
 
 2. **Install Dependencies**
    ```bash
+   # Upgrade pip (recommended)
+   python -m pip install --upgrade pip
+   
+   # Install project dependencies
    pip install -r requirements.txt
+   
+   # Install FastAPI with CLI support for development
+   pip install "fastapi[standard]"
    ```
 
 3. **Run the Application**
    ```bash
+   # Option 1: FastAPI CLI (recommended)
+   fastapi dev src/main.py
+   
+   # Option 2: Direct uvicorn
    uvicorn src.main:app --reload
    ```
 
@@ -258,7 +274,8 @@ MAX_DESCRIPTION_LENGTH=5000
 ### Authentication & Authorization  
 - **JWT-based authentication** with configurable expiration and refresh tokens
 - **Password hashing** using bcrypt with secure salt rounds
-- **Role-based access control** within tenant boundaries
+- **Advanced RBAC system** - 23+ granular permissions with 3-tier roles (OWNER/ADMIN/USER)
+- **FastAPI dependency injection** - Automatic permission checking with factory functions
 - **Complete auth lifecycle** - login, logout, token refresh, and profile access
 - **Automatic tenant validation** - users can only access their assigned tenant data
 
@@ -476,6 +493,63 @@ docker-compose restart casnet-api       # Restart API container
 - **✅ Interactive Docs**: Available at http://localhost:8000/docs
 - **✅ OpenAPI Schema**: Comprehensive API documentation automatically generated.
 - **🔧 Database**: PostgreSQL container is available but requires the `full-stack` profile to be activated.
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+#### "fastapi: command not found"
+**Problem:** FastAPI CLI is not installed.
+```bash
+pip install "fastapi[standard]"
+```
+
+#### "Path does not exist src\main.py"
+**Problem:** You're not in the correct directory.
+```bash
+cd casnet-backend  # Make sure you're in the project root
+fastapi dev src/main.py
+```
+
+#### "TypeError: Depends(...) is not a callable object"
+**Problem:** Dependencies error after moving project or changing dependencies.
+**Solution:** Recreate the virtual environment:
+```bash
+# Remove old virtual environment
+rm -rf venv  # Linux/Mac
+# rmdir /s venv  # Windows
+
+# Create fresh environment  
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# .\venv\Scripts\activate  # Windows
+
+# Reinstall dependencies
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install "fastapi[standard]"
+```
+
+#### Database Initialization Issues
+**Problem:** Database connection errors or missing tables.
+**Solution:** Delete and recreate the database:
+```bash
+rm data/casnet.db  # Remove existing database
+fastapi dev src/main.py  # Restart server (auto-creates DB)
+```
+
+#### Server Starts But No Output  
+**Problem:** Server runs silently without startup logs.
+**Solution:** Try uvicorn directly with verbose logging:
+```bash
+uvicorn src.main:app --reload --log-level debug
+```
+
+### Getting Help
+
+- 📖 **Full Documentation**: [GitHub Wiki](https://github.com/DatMayo/casnet-backend/wiki)
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/DatMayo/casnet-backend/issues)
+- 💬 **Ask Questions**: Create a GitHub Discussion
 
 ## 🚀 Deployment
 
