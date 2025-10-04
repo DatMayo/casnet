@@ -114,7 +114,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Include routers
 app.include_router(health.router)  # Health checks (no auth required)
-app.include_router(auth.router)
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(tenant.router)
 app.include_router(user.router)
 app.include_router(person.router)
